@@ -25,3 +25,4 @@ export interface RankingData {
 export type TabType = 'branch' | 'region' | 'rookie';
 
 
+
