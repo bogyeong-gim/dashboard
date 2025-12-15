@@ -8,12 +8,33 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ onLogin, onAdminClick }) => {
   const [employeeId, setEmployeeId] = useState('');
+  const [error, setError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // 숫자만 입력 가능하도록 제한
+    if (value === '' || /^\d+$/.test(value)) {
+      setEmployeeId(value);
+      setError(''); // 입력 시 에러 메시지 초기화
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (employeeId.trim()) {
-      onLogin(employeeId.trim());
+    const trimmedId = employeeId.trim();
+    
+    if (!trimmedId) {
+      setError('사번 7자리를 모두 입력하세요.');
+      return;
     }
+    
+    if (trimmedId.length !== 7) {
+      setError('사번 7자리를 모두 입력하세요.');
+      return;
+    }
+    
+    setError('');
+    onLogin(trimmedId);
   };
 
   return (
@@ -39,11 +60,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onAdminClick }) => {
                 type="text"
                 id="employeeId"
                 value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                placeholder="사번을 입력하세요"
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-400 focus:outline-none transition-colors text-gray-800 placeholder-gray-400"
+                onChange={handleChange}
+                placeholder="사번 7자리를 입력하세요"
+                maxLength={7}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none transition-colors text-gray-800 placeholder-gray-400 ${
+                  error 
+                    ? 'border-red-400 focus:border-red-500' 
+                    : 'border-gray-200 focus:border-orange-400'
+                }`}
                 autoFocus
               />
+              {error && (
+                <p className="mt-2 text-sm text-red-600">{error}</p>
+              )}
             </div>
 
             <button
@@ -74,6 +103,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onAdminClick }) => {
 };
 
 export default Login;
+
 
 
 

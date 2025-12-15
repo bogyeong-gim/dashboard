@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Minus } from 'lucide-react';
+import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Minus, Search, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
+
+interface EmployeeData {
+  region: string;        // 지역
+  branch: string;        // 지점단
+  employeeId: string;    // 사번
+  name: string;          // 이름
+  points: number;        // 성적
+  months: number;        // 차월
+  change: 'up' | 'down' | 'stable';
+}
 
 const LeaderboardApp = () => {
   const [activeTab, setActiveTab] = useState('branch');
   const [animateRanks, setAnimateRanks] = useState(false);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [employeeId, setEmployeeId] = useState('');
+  const [currentUser, setCurrentUser] = useState<EmployeeData | null>(null);
+  const [allData, setAllData] = useState<EmployeeData[]>([]);
 
   const tabs = ['branch', 'region', 'rookie'];
   const tabLabels = {
@@ -14,50 +28,138 @@ const LeaderboardApp = () => {
     rookie: '신인'
   };
 
+  // 엑셀 파일 로드 (초기 로드)
+  useEffect(() => {
+    fetch('/guinness_test_data.xlsx')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.arrayBuffer();
+      })
+      .then(buffer => {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        console.log('📊 엑셀 데이터 로드 완료:', {
+          시트명: sheetName,
+          총데이터수: jsonData.length,
+          첫번째행샘플: jsonData[0]
+        });
+        
+        const data: EmployeeData[] = jsonData.map((row: any) => {
+          const randomValue = Math.random();
+          const changeValue: 'up' | 'down' | 'stable' = randomValue > 0.6 ? 'up' : (randomValue > 0.3 ? 'stable' : 'down');
+          return {
+            region: String(row['지역'] || row['region'] || '').trim(),
+            branch: String(row['지점단'] || row['branch'] || '').trim(),
+            employeeId: String(row['사번'] || row['employeeId'] || '').trim(),
+            name: String(row['이름'] || row['name'] || '').trim(),
+            points: parseInt(String(row['성적'] || row['points'] || '0').replace(/,/g, '')) || 0,
+            months: parseInt(String(row['차월'] || row['months'] || '0')) || 0,
+            change: changeValue
+          };
+        }).filter(item => item.employeeId && item.name && item.branch); // 유효한 데이터만 필터링
+        
+        console.log('✅ 변환된 데이터:', {
+          총개수: data.length,
+          지역목록: [...new Set(data.map(d => d.region))],
+          지점단목록: [...new Set(data.map(d => d.branch))],
+          첫5개: data.slice(0, 5)
+        });
+        
+        setAllData(data);
+      })
+      .catch(error => {
+        console.error('❌ 엑셀 로드 오류:', error);
+        alert('엑셀 파일을 불러올 수 없습니다. public 폴더에 guinness_test_data.xlsx 파일이 있는지 확인해주세요.');
+      });
+  }, []);
+
+  // 엑셀 파일 업로드 처리
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const buffer = e.target?.result;
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        const data: EmployeeData[] = jsonData.map((row: any) => {
+          const randomValue = Math.random();
+          const changeValue: 'up' | 'down' | 'stable' = randomValue > 0.6 ? 'up' : (randomValue > 0.3 ? 'stable' : 'down');
+          return {
+            region: String(row['지역'] || row['region'] || '').trim(),
+            branch: String(row['지점단'] || row['branch'] || '').trim(),
+            employeeId: String(row['사번'] || row['employeeId'] || '').trim(),
+            name: String(row['이름'] || row['name'] || '').trim(),
+            points: parseInt(String(row['성적'] || row['points'] || '0').replace(/,/g, '')) || 0,
+            months: parseInt(String(row['차월'] || row['months'] || '0')) || 0,
+            change: changeValue
+          };
+        }).filter(item => item.employeeId && item.name && item.branch);
+        
+        setAllData(data);
+        alert(`엑셀 파일 업로드 완료! (${data.length}명의 데이터)`);
+      } catch (error) {
+        console.error('파일 읽기 오류:', error);
+        alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   // 실제 데이터
   const branchData = [
-    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up', months: 216 },
-    { rank: 2, branch: '정동', name: '채희관', points: 1583626, change: 'up', months: 158 },
-    { rank: 3, branch: '정동', name: '김지훈', points: 1548519, change: 'stable', months: 146 },
-    { rank: 4, branch: '정동', name: '홍백영', points: 1402058, change: 'up', months: 364 },
-    { rank: 5, branch: '정동', name: '권경애', points: 1206563, change: 'stable', months: 340 },
-    { rank: 6, branch: '정동', name: '최인선', points: 1168209, change: 'up', months: 317 },
-    { rank: 7, branch: '정동', name: '안미숙', points: 1011767, change: 'stable', months: 118 },
-    { rank: 8, branch: '정동', name: '이금신', points: 1005203, change: 'up', months: 9 },
-    { rank: 9, branch: '정동', name: '한옥숙', points: 1004274, change: 'stable', months: 347 },
-    { rank: 10, branch: '정동', name: '홍나희', points: 834576, change: 'down', months: 168 },
-    { rank: 11, branch: '정동', name: '고숙희', points: 776184, change: 'stable', months: 350 },
-    { rank: 12, branch: '정동', name: '문해선', points: 745856, change: 'up', months: 137 },
-    { rank: 13, branch: '정동', name: '태현', points: 740305, change: 'stable', months: 282 },
-    { rank: 14, branch: '정동', name: '이영애', points: 710739, change: 'up', months: 25 },
-    { rank: 15, branch: '정동', name: '종로2', points: 701827, change: 'down', months: 289 },
-    { rank: 38, branch: '정동', name: '서진일', points: 19510, change: 'stable', months: 147, isCurrentUser: true }
+    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up' as const, months: 216, isCurrentUser: false },
+    { rank: 2, branch: '정동', name: '채희관', points: 1583626, change: 'up' as const, months: 158, isCurrentUser: false },
+    { rank: 3, branch: '정동', name: '김지훈', points: 1548519, change: 'stable' as const, months: 146, isCurrentUser: false },
+    { rank: 4, branch: '정동', name: '홍백영', points: 1402058, change: 'up' as const, months: 364, isCurrentUser: false },
+    { rank: 5, branch: '정동', name: '권경애', points: 1206563, change: 'stable' as const, months: 340, isCurrentUser: false },
+    { rank: 6, branch: '정동', name: '최인선', points: 1168209, change: 'up' as const, months: 317, isCurrentUser: false },
+    { rank: 7, branch: '정동', name: '안미숙', points: 1011767, change: 'stable' as const, months: 118, isCurrentUser: false },
+    { rank: 8, branch: '정동', name: '이금신', points: 1005203, change: 'up' as const, months: 9, isCurrentUser: false },
+    { rank: 9, branch: '정동', name: '한옥숙', points: 1004274, change: 'stable' as const, months: 347, isCurrentUser: false },
+    { rank: 10, branch: '정동', name: '홍나희', points: 834576, change: 'down' as const, months: 168, isCurrentUser: false },
+    { rank: 11, branch: '정동', name: '고숙희', points: 776184, change: 'stable' as const, months: 350, isCurrentUser: false },
+    { rank: 12, branch: '정동', name: '문해선', points: 745856, change: 'up' as const, months: 137, isCurrentUser: false },
+    { rank: 13, branch: '정동', name: '태현', points: 740305, change: 'stable' as const, months: 282, isCurrentUser: false },
+    { rank: 14, branch: '정동', name: '이영애', points: 710739, change: 'up' as const, months: 25, isCurrentUser: false },
+    { rank: 15, branch: '정동', name: '종로2', points: 701827, change: 'down' as const, months: 289, isCurrentUser: false },
+    { rank: 38, branch: '정동', name: '서진일', points: 19510, change: 'stable' as const, months: 147, isCurrentUser: true }
   ];
 
   const regionData = [
-    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up', months: 216 },
-    { rank: 2, branch: '로얄', name: '최명진', points: 1993939, change: 'up', months: 275 },
-    { rank: 3, branch: '불광', name: '지영란', points: 2405251, change: 'up', months: 335 },
-    { rank: 4, branch: '불광', name: '임정숙', points: 2002229, change: 'stable', months: 338 },
-    { rank: 5, branch: '정동', name: '채희관', points: 1583626, change: 'up', months: 158 },
-    { rank: 6, branch: '정동', name: '김지훈', points: 1548519, change: 'down', months: 146 },
-    { rank: 7, branch: '불광', name: '애은대리점', points: 1674011, change: 'up', months: 353 },
-    { rank: 8, branch: '로얄', name: '이현희', points: 1473181, change: 'stable', months: 222 },
-    { rank: 9, branch: '불광', name: '지영란', points: 1458780, change: 'up', months: 335 },
-    { rank: 10, branch: '정동', name: '홍백영', points: 1402058, change: 'stable', months: 364 }
+    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up' as const, months: 216, isCurrentUser: false },
+    { rank: 2, branch: '로얄', name: '최명진', points: 1993939, change: 'up' as const, months: 275, isCurrentUser: false },
+    { rank: 3, branch: '불광', name: '지영란', points: 2405251, change: 'up' as const, months: 335, isCurrentUser: false },
+    { rank: 4, branch: '불광', name: '임정숙', points: 2002229, change: 'stable' as const, months: 338, isCurrentUser: false },
+    { rank: 5, branch: '정동', name: '채희관', points: 1583626, change: 'up' as const, months: 158, isCurrentUser: false },
+    { rank: 6, branch: '정동', name: '김지훈', points: 1548519, change: 'down' as const, months: 146, isCurrentUser: false },
+    { rank: 7, branch: '불광', name: '애은대리점', points: 1674011, change: 'up' as const, months: 353, isCurrentUser: false },
+    { rank: 8, branch: '로얄', name: '이현희', points: 1473181, change: 'stable' as const, months: 222, isCurrentUser: false },
+    { rank: 9, branch: '불광', name: '지영란', points: 1458780, change: 'up' as const, months: 335, isCurrentUser: false },
+    { rank: 10, branch: '정동', name: '홍백영', points: 1402058, change: 'stable' as const, months: 364, isCurrentUser: false }
   ];
 
   const rookieData = [
-    { rank: 1, branch: '로얄', name: '강혜연', points: 1099028, change: 'up', months: 7 },
-    { rank: 2, branch: '정동', name: '이금신', points: 1005203, change: 'up', months: 9 },
-    { rank: 3, branch: '로얄', name: '송정훈', points: 706554, change: 'up', months: 3 },
-    { rank: 4, branch: '로얄', name: '이예환', points: 524268, change: 'stable', months: 11 },
-    { rank: 5, branch: '로얄', name: '박달수', points: 506880, change: 'up', months: 7 },
-    { rank: 6, branch: '로얄', name: '이현', points: 451604, change: 'up', months: 3 },
-    { rank: 7, branch: '로얄', name: '전소영', points: 448128, change: 'stable', months: 4 },
-    { rank: 8, branch: '로얄', name: '김종원', points: 443928, change: 'up', months: 1 },
-    { rank: 9, branch: '로얄', name: '이한성', points: 442391, change: 'up', months: 3 },
-    { rank: 10, branch: '로얄', name: '안명남', points: 427990, change: 'down', months: 4 }
+    { rank: 1, branch: '로얄', name: '강혜연', points: 1099028, change: 'up' as const, months: 7, isCurrentUser: false },
+    { rank: 2, branch: '정동', name: '이금신', points: 1005203, change: 'up' as const, months: 9, isCurrentUser: false },
+    { rank: 3, branch: '로얄', name: '송정훈', points: 706554, change: 'up' as const, months: 3, isCurrentUser: false },
+    { rank: 4, branch: '로얄', name: '이예환', points: 524268, change: 'stable' as const, months: 11, isCurrentUser: false },
+    { rank: 5, branch: '로얄', name: '박달수', points: 506880, change: 'up' as const, months: 7, isCurrentUser: false },
+    { rank: 6, branch: '로얄', name: '이현', points: 451604, change: 'up' as const, months: 3, isCurrentUser: false },
+    { rank: 7, branch: '로얄', name: '전소영', points: 448128, change: 'stable' as const, months: 4, isCurrentUser: false },
+    { rank: 8, branch: '로얄', name: '김종원', points: 443928, change: 'up' as const, months: 1, isCurrentUser: false },
+    { rank: 9, branch: '로얄', name: '이한성', points: 442391, change: 'up' as const, months: 3, isCurrentUser: false },
+    { rank: 10, branch: '로얄', name: '안명남', points: 427990, change: 'down' as const, months: 4, isCurrentUser: false }
   ];
 
   // 지점별 컬러 매핑
@@ -127,7 +229,63 @@ const LeaderboardApp = () => {
     return branchColors[branch] || { bg: 'bg-gray-50', text: 'text-gray-700', badge: 'bg-gray-100', border: 'border-gray-200' };
   };
 
+  // 사번으로 사용자 검색
+  const handleSearchEmployee = () => {
+    if (!employeeId.trim()) {
+      alert('사번을 입력해주세요.');
+      return;
+    }
+    const user = allData.find(person => person.employeeId === employeeId.trim());
+    if (user) {
+      setCurrentUser(user);
+    } else {
+      alert('해당 사번을 찾을 수 없습니다.');
+      setCurrentUser(null);
+    }
+  };
+
+  // 동일 지점단 데이터 필터링 및 순위 계산
+  const getFilteredData = () => {
+    if (!currentUser || allData.length === 0) {
+      return [];
+    }
+
+    // 동일 지점단만 필터링
+    const sameBranchData = allData.filter(person => person.branch === currentUser.branch);
+    
+    // 성적순으로 정렬 (내림차순)
+    const sortedData = [...sameBranchData].sort((a, b) => b.points - a.points);
+    
+    // 순위 부여
+    return sortedData.map((person, index) => ({
+      rank: index + 1,
+      branch: person.branch,
+      name: person.name,
+      points: person.points,
+      change: person.change,
+      months: person.months,
+      isCurrentUser: person.employeeId === currentUser.employeeId
+    }));
+  };
+
   const getCurrentData = () => {
+    // CSV 데이터가 로드되고 사용자가 선택되었으면 필터링된 데이터 사용
+    if (currentUser && allData.length > 0) {
+      const filteredData = getFilteredData();
+      
+      switch(activeTab) {
+        case 'branch':
+        case 'region':
+          return filteredData;
+        case 'rookie':
+          // 신인: 12개월 이하만 필터링
+          return filteredData.filter(person => person.months <= 12);
+        default:
+          return filteredData;
+      }
+    }
+    
+    // 기본 하드코딩된 데이터
     switch(activeTab) {
       case 'branch': return branchData;
       case 'region': return regionData;
@@ -154,6 +312,61 @@ const LeaderboardApp = () => {
               <Calendar className="w-4 h-4" />
               <span>진행현황</span>
             </div>
+          </div>
+
+          {/* 엑셀 파일 업로드 */}
+          <div className="mb-3">
+            <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm cursor-pointer">
+              <Upload className="w-4 h-4" />
+              <span>엑셀 파일 업로드</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
+            <div className="mt-2 text-xs text-gray-600 text-center">
+              {allData.length > 0 ? (
+                <p className="text-green-600 font-medium">✅ 로드된 데이터: {allData.length}명</p>
+              ) : (
+                <p>파일을 업로드하거나 자동 로드를 기다려주세요.</p>
+              )}
+              <div className="mt-1 p-2 bg-gray-50 rounded-lg">
+                <p className="font-semibold text-gray-700 mb-1">📋 엑셀 파일 형식</p>
+                <p className="text-gray-600">
+                  <span className="font-medium">필수 컬럼:</span> 지역, 지점단, 사번, 이름, 성적, 차월
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 사번 검색 */}
+          <div className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchEmployee()}
+                placeholder="사번을 입력하세요"
+                className="flex-1 px-4 py-2.5 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+              />
+              <button
+                onClick={handleSearchEmployee}
+                className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-700 transition-all shadow-sm flex items-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                <span>검색</span>
+              </button>
+            </div>
+            {currentUser && (
+              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                <p className="text-sm text-orange-800">
+                  <span className="font-bold">{currentUser.name}</span>님 ({currentUser.region} - {currentUser.branch} 지점단) - 동일 지점단 내 순위를 표시합니다.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2 mb-4">
@@ -330,17 +543,25 @@ const LeaderboardApp = () => {
         <div className="grid grid-cols-3 gap-3 mt-4">
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Users className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">147</div>
-            <div className="text-xs text-gray-600">전체 참가자</div>
+            <div className="text-xl font-bold text-gray-800">
+              {currentUser ? getFilteredData().length : allData.length || 147}
+            </div>
+            <div className="text-xs text-gray-600">
+              {currentUser ? '지점단 참가자' : '전체 참가자'}
+            </div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Trophy className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">38</div>
+            <div className="text-xl font-bold text-gray-800">
+              {currentUser ? getFilteredData().find(p => p.isCurrentUser)?.rank || '-' : '-'}
+            </div>
             <div className="text-xs text-gray-600">내 순위</div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Star className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">19.5K</div>
+            <div className="text-xl font-bold text-gray-800">
+              {currentUser ? (currentUser.points / 1000).toFixed(1) + 'K' : '-'}
+            </div>
             <div className="text-xs text-gray-600">내 포인트</div>
           </div>
         </div>

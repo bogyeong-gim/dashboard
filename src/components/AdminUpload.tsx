@@ -40,7 +40,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls'))) {
+    if (droppedFile && (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls') || droppedFile.name.endsWith('.csv'))) {
       setFile(droppedFile);
       setUploadStatus('idle');
       setErrorMessage('');
@@ -55,21 +55,79 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
       reader.onload = (e) => {
         try {
           const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+          
+          if (!data) {
+            throw new Error('파일 데이터를 읽을 수 없습니다.');
+          }
+          
+          let jsonData: any[] = [];
+          
+          // CSV 파일 처리
+          if (file.name.endsWith('.csv')) {
+            const text = data as string;
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            if (lines.length < 2) {
+              throw new Error('CSV 파일에 데이터가 없습니다.');
+            }
+            
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            jsonData = lines.slice(1).map(line => {
+              const values = line.split(',').map(v => v.trim());
+              const row: any = {};
+              headers.forEach((header, index) => {
+                row[header] = values[index];
+              });
+              return row;
+            });
+          } 
+          // Excel 파일 처리
+          else {
+            const workbook = XLSX.read(data, { type: 'array' });
+            
+            if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+              throw new Error('엑셀 파일에 시트가 없습니다. 파일이 손상되었거나 올바른 형식이 아닙니다.');
+            }
+            
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            
+            if (!worksheet) {
+              throw new Error('엑셀 시트를 읽을 수 없습니다.');
+            }
+            
+            jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[];
+          }
+
+          if (!jsonData || jsonData.length === 0) {
+            throw new Error('파일에 데이터가 없습니다.');
+          }
+
+          // 첫 번째 행의 컬럼 확인
+          const firstRow = jsonData[0];
+          const columns = Object.keys(firstRow);
+          console.log('파일의 컬럼:', columns);
+          console.log('첫 번째 데이터:', firstRow);
 
           // 데이터 검증 및 변환
           const parsedData: ExcelData[] = jsonData.map((row, index) => {
-            if (!row['지역단'] || !row['사번'] || !row['이름'] || row['성적'] === undefined || row['차월'] === undefined) {
-              throw new Error(`${index + 2}번째 행에 필수 데이터가 누락되었습니다.`);
+            // 필수 필드 확인
+            const missing = [];
+            if (!row['지역단']) missing.push('지역단');
+            if (!row['사번']) missing.push('사번');
+            if (!row['이름']) missing.push('이름');
+            if (row['성적'] === undefined || row['성적'] === '') missing.push('성적');
+            if (row['차월'] === undefined || row['차월'] === '') missing.push('차월');
+            
+            if (missing.length > 0) {
+              throw new Error(`${index + 2}번째 행에 [${missing.join(', ')}] 데이터가 누락되었습니다.`);
             }
 
             return {
-              지역단: String(row['지역단']),
-              사번: String(row['사번']),
-              이름: String(row['이름']),
+              지역단: String(row['지역단']).trim(),
+              사번: String(row['사번']).trim(),
+              이름: String(row['이름']).trim(),
               성적: Number(row['성적']),
               차월: Number(row['차월'])
             };
@@ -77,6 +135,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
 
           resolve(parsedData);
         } catch (error) {
+          console.error('파일 파싱 에러:', error);
           reject(error);
         }
       };
@@ -85,7 +144,12 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
         reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
       };
 
-      reader.readAsBinaryString(file);
+      // CSV는 텍스트로, Excel은 ArrayBuffer로 읽기
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file, 'UTF-8');
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
     });
   };
 
@@ -175,12 +239,12 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
                   엑셀 파일을 드래그하거나 클릭하여 선택하세요
                 </p>
                 <p className="text-sm text-gray-500 mb-4">
-                  지원 형식: .xlsx, .xls
+                  지원 형식: .xlsx, .xls, .csv
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx,.xls,.csv"
                   onChange={handleFileChange}
                   className="hidden"
                   id="file-upload"
@@ -281,6 +345,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
 };
 
 export default AdminUpload;
+
 
 
 

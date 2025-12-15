@@ -49,13 +49,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     return branchColors[branch];
   };
 
+  const getPointsDisplay = (points: number) => {
+    return points.toLocaleString();
+  };
+
+  const getCurrentData = () => {
+    return rankingData[activeTab];
+  };
+
+  const currentData = getCurrentData();
+  const top3 = currentData.slice(0, 3);
+  const restData = currentData.slice(3);
+
+  // 동적 뉴스 메시지 생성
   const newsItems = [
-    '🎉 최고 점수 달성자를 축하합니다!',
+    top3[0] ? `🏆 1등: ${top3[0].name} (${top3[0].branch}) ${getPointsDisplay(top3[0].points)}점` : '🎉 최고 점수 달성자를 축하합니다!',
+    top3[1] ? `🥈 2등: ${top3[1].name} (${top3[1].branch}) ${getPointsDisplay(top3[1].points)}점` : '',
+    top3[2] ? `🥉 3등: ${top3[2].name} (${top3[2].branch}) ${getPointsDisplay(top3[2].points)}점` : '',
     '🔥 이번 달 신인왕 경쟁 치열',
-    '⭐ TOP 10 진입자 특별 보상 지급',
     '💪 목표 달성까지 화이팅!',
     '🎯 개인 목표 달성률 상승 중'
-  ];
+  ].filter(item => item !== ''); // 빈 문자열 제거
 
   useEffect(() => {
     setAnimateRanks(true);
@@ -94,10 +108,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     return <Minus className="w-5 h-5 text-gray-400" />;
   };
 
-  const getPointsDisplay = (points: number) => {
-    return points.toLocaleString();
-  };
-
   const getRankStyle = (isCurrentUser?: boolean) => {
     if (isCurrentUser) return 'bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-400 shadow-md';
     return 'bg-white hover:bg-gray-50/50';
@@ -106,14 +116,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const getBranchColor = (branch: string) => {
     return getRandomColor(branch);
   };
-
-  const getCurrentData = () => {
-    return rankingData[activeTab];
-  };
-
-  const currentData = getCurrentData();
-  const top3 = currentData.slice(0, 3);
-  const restData = currentData.slice(3);
 
   // 현재 사용자 정보
   const currentUserData = currentData.find(player => player.isCurrentUser);
@@ -161,11 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-2.5 px-3 rounded-xl font-medium transition-all text-sm shadow-sm ${
                   activeTab === tab
-                    ? tab === 'rookie'
-                      ? 'bg-gradient-to-r from-orange-400 to-amber-500 text-white shadow-orange-200'
-                      : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-orange-200'
-                    : tab === 'rookie'
-                    ? 'bg-gradient-to-r from-orange-200 to-amber-300 text-orange-900 hover:from-orange-300 hover:to-amber-400'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -340,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Star className="w-5 h-5 mx-auto mb-2 text-orange-500" />
             <div className="text-xl font-bold text-gray-800">
-              {currentUserData ? (currentUserData.points / 1000).toFixed(1) + 'K' : '-'}
+              {currentUserData ? (currentUserData.points / 10000).toFixed(1) + '만' : '-'}
             </div>
             <div className="text-xs text-gray-600">내 포인트</div>
           </div>
@@ -374,6 +372,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 };
 
 export default Dashboard;
+
 
 
 
