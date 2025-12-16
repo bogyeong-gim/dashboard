@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, ArrowLeft, X } from 
 import * as XLSX from 'xlsx';
 
 interface ExcelData {
+  지점: string;
   지역단: string;
   사번: string;
   이름: string;
@@ -114,6 +115,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
           const parsedData: ExcelData[] = jsonData.map((row, index) => {
             // 필수 필드 확인
             const missing = [];
+            if (!row['지점']) missing.push('지점');
             if (!row['지역단']) missing.push('지역단');
             if (!row['사번']) missing.push('사번');
             if (!row['이름']) missing.push('이름');
@@ -125,6 +127,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
             }
 
             return {
+              지점: String(row['지점']).trim(),
               지역단: String(row['지역단']).trim(),
               사번: String(row['사번']).trim(),
               이름: String(row['이름']).trim(),
@@ -216,6 +219,7 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
               엑셀 파일에는 다음 열이 포함되어야 합니다:
             </p>
             <ul className="text-sm text-blue-800 mt-2 space-y-1 ml-4">
+              <li>• <strong>지점</strong>: 지점 이름</li>
               <li>• <strong>지역단</strong>: 지역단 이름</li>
               <li>• <strong>사번</strong>: 직원 사번</li>
               <li>• <strong>이름</strong>: 직원 이름</li>
@@ -314,6 +318,8 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
                     {previewData.map((item, index) => (
                       <div key={index} className="flex gap-2">
                         <span className="font-medium">{item.이름}</span>
+                        <span className="text-gray-500">|</span>
+                        <span>{item.지점}</span>
                         <span className="text-gray-500">|</span>
                         <span>{item.지역단}</span>
                         <span className="text-gray-500">|</span>

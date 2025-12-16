@@ -28,7 +28,7 @@ const createRanking = (data: ExcelData[], currentUserId?: string): RankedPlayer[
   // 랭킹 부여
   const ranked: RankedPlayer[] = sorted.map((item, index) => ({
     rank: index + 1,
-    branch: item.지역단,
+    branch: item.지점,
     employeeId: item.사번,
     name: item.이름,
     points: item.성적,
@@ -66,7 +66,7 @@ export const getUserRankInfo = (data: ExcelData[], employeeId: string) => {
     name: userData.이름,
     points: userData.성적,
     totalParticipants: data.length,
-    branch: userData.지역단,
+    branch: userData.지점,
     months: userData.차월
   };
 };
@@ -95,6 +95,7 @@ export const loadDataFromStorage = (): ExcelData[] | null => {
 export const getLastUpdatedTime = (): string | null => {
   return localStorage.getItem('lastUpdated');
 };
+
 
 
 

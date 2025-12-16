@@ -3,8 +3,8 @@ import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Min
 import * as XLSX from 'xlsx';
 
 interface EmployeeData {
-  region: string;        // 지역
-  branch: string;        // 지점단
+  region: string;        // 지역단
+  branch: string;        // 지점
   employeeId: string;    // 사번
   name: string;          // 이름
   points: number;        // 성적
@@ -28,22 +28,30 @@ const LeaderboardApp = () => {
     rookie: '신인'
   };
 
-  // 엑셀 파일 로드 (초기 로드)
+  // 서버에서 엑셀 파일 로드 (초기 로드 - 파일이 없으면 무시)
   useEffect(() => {
-    fetch('/guinness_test_data.xlsx')
-      .then(response => {
+    const loadData = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/data');
+        
+        // 404면 파일이 없는 것이므로 무시
+        if (response.status === 404) {
+          console.log('ℹ️ 업로드된 파일이 없습니다. 엑셀 파일을 업로드해주세요.');
+          setAllData([]);
+          return;
+        }
+        
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.arrayBuffer();
-      })
-      .then(buffer => {
+        
+        const buffer = await response.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        console.log('📊 엑셀 데이터 로드 완료:', {
+        console.log('📊 서버에서 데이터 로드 완료:', {
           시트명: sheetName,
           총데이터수: jsonData.length,
           첫번째행샘플: jsonData[0]
@@ -53,51 +61,8 @@ const LeaderboardApp = () => {
           const randomValue = Math.random();
           const changeValue: 'up' | 'down' | 'stable' = randomValue > 0.6 ? 'up' : (randomValue > 0.3 ? 'stable' : 'down');
           return {
-            region: String(row['지역'] || row['region'] || '').trim(),
-            branch: String(row['지점단'] || row['branch'] || '').trim(),
-            employeeId: String(row['사번'] || row['employeeId'] || '').trim(),
-            name: String(row['이름'] || row['name'] || '').trim(),
-            points: parseInt(String(row['성적'] || row['points'] || '0').replace(/,/g, '')) || 0,
-            months: parseInt(String(row['차월'] || row['months'] || '0')) || 0,
-            change: changeValue
-          };
-        }).filter(item => item.employeeId && item.name && item.branch); // 유효한 데이터만 필터링
-        
-        console.log('✅ 변환된 데이터:', {
-          총개수: data.length,
-          지역목록: [...new Set(data.map(d => d.region))],
-          지점단목록: [...new Set(data.map(d => d.branch))],
-          첫5개: data.slice(0, 5)
-        });
-        
-        setAllData(data);
-      })
-      .catch(error => {
-        console.error('❌ 엑셀 로드 오류:', error);
-        alert('엑셀 파일을 불러올 수 없습니다. public 폴더에 guinness_test_data.xlsx 파일이 있는지 확인해주세요.');
-      });
-  }, []);
-
-  // 엑셀 파일 업로드 처리
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const buffer = e.target?.result;
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-        
-        const data: EmployeeData[] = jsonData.map((row: any) => {
-          const randomValue = Math.random();
-          const changeValue: 'up' | 'down' | 'stable' = randomValue > 0.6 ? 'up' : (randomValue > 0.3 ? 'stable' : 'down');
-          return {
-            region: String(row['지역'] || row['region'] || '').trim(),
-            branch: String(row['지점단'] || row['branch'] || '').trim(),
+            region: String(row['지역단'] || row['region'] || '').trim(),
+            branch: String(row['지점'] || row['branch'] || '').trim(),
             employeeId: String(row['사번'] || row['employeeId'] || '').trim(),
             name: String(row['이름'] || row['name'] || '').trim(),
             points: parseInt(String(row['성적'] || row['points'] || '0').replace(/,/g, '')) || 0,
@@ -106,77 +71,120 @@ const LeaderboardApp = () => {
           };
         }).filter(item => item.employeeId && item.name && item.branch);
         
+        console.log('✅ 변환된 데이터:', {
+          총개수: data.length,
+          지역단목록: [...new Set(data.map(d => d.region))],
+          지점목록: [...new Set(data.map(d => d.branch))],
+          첫5개: data.slice(0, 5)
+        });
+        
         setAllData(data);
-        alert(`엑셀 파일 업로드 완료! (${data.length}명의 데이터)`);
       } catch (error) {
-        console.error('파일 읽기 오류:', error);
-        alert('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+        console.error('❌ 서버에서 데이터 로드 오류:', error);
+        console.log('서버가 실행 중인지 확인해주세요. (npm run server)');
+        setAllData([]);
       }
     };
-    reader.readAsArrayBuffer(file);
+    
+    loadData();
+  }, []);
+
+  // 서버로 엑셀 파일 업로드 (관리자용)
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // FormData로 파일 전송
+      const formData = new FormData();
+      formData.append('file', file);
+
+      console.log('📤 서버로 파일 업로드 중...');
+      
+      const response = await fetch('http://localhost:3001/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('업로드 실패');
+      }
+
+      const result = await response.json();
+      console.log('✅ 서버 업로드 성공:', result);
+
+      // 업로드 후 데이터 다시 로드
+      const dataResponse = await fetch('http://localhost:3001/api/data');
+      const buffer = await dataResponse.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      const data: EmployeeData[] = jsonData.map((row: any) => {
+        const randomValue = Math.random();
+        const changeValue: 'up' | 'down' | 'stable' = randomValue > 0.6 ? 'up' : (randomValue > 0.3 ? 'stable' : 'down');
+        return {
+          region: String(row['지역단'] || row['region'] || '').trim(),
+          branch: String(row['지점'] || row['branch'] || '').trim(),
+          employeeId: String(row['사번'] || row['employeeId'] || '').trim(),
+          name: String(row['이름'] || row['name'] || '').trim(),
+          points: parseInt(String(row['성적'] || row['points'] || '0').replace(/,/g, '')) || 0,
+          months: parseInt(String(row['차월'] || row['months'] || '0')) || 0,
+          change: changeValue
+        };
+      }).filter(item => item.employeeId && item.name && item.branch);
+
+      setAllData(data);
+      alert(`✅ 엑셀 파일이 서버에 업로드되었습니다! (${data.length}명의 데이터)\n모든 사용자가 업데이트된 데이터를 볼 수 있습니다.`);
+      
+      // 파일 입력 초기화
+      event.target.value = '';
+    } catch (error) {
+      console.error('❌ 업로드 오류:', error);
+      alert('파일 업로드 중 오류가 발생했습니다. 서버가 실행 중인지 확인해주세요.');
+    }
   };
 
-  // 실제 데이터
-  const branchData = [
-    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up' as const, months: 216, isCurrentUser: false },
-    { rank: 2, branch: '정동', name: '채희관', points: 1583626, change: 'up' as const, months: 158, isCurrentUser: false },
-    { rank: 3, branch: '정동', name: '김지훈', points: 1548519, change: 'stable' as const, months: 146, isCurrentUser: false },
-    { rank: 4, branch: '정동', name: '홍백영', points: 1402058, change: 'up' as const, months: 364, isCurrentUser: false },
-    { rank: 5, branch: '정동', name: '권경애', points: 1206563, change: 'stable' as const, months: 340, isCurrentUser: false },
-    { rank: 6, branch: '정동', name: '최인선', points: 1168209, change: 'up' as const, months: 317, isCurrentUser: false },
-    { rank: 7, branch: '정동', name: '안미숙', points: 1011767, change: 'stable' as const, months: 118, isCurrentUser: false },
-    { rank: 8, branch: '정동', name: '이금신', points: 1005203, change: 'up' as const, months: 9, isCurrentUser: false },
-    { rank: 9, branch: '정동', name: '한옥숙', points: 1004274, change: 'stable' as const, months: 347, isCurrentUser: false },
-    { rank: 10, branch: '정동', name: '홍나희', points: 834576, change: 'down' as const, months: 168, isCurrentUser: false },
-    { rank: 11, branch: '정동', name: '고숙희', points: 776184, change: 'stable' as const, months: 350, isCurrentUser: false },
-    { rank: 12, branch: '정동', name: '문해선', points: 745856, change: 'up' as const, months: 137, isCurrentUser: false },
-    { rank: 13, branch: '정동', name: '태현', points: 740305, change: 'stable' as const, months: 282, isCurrentUser: false },
-    { rank: 14, branch: '정동', name: '이영애', points: 710739, change: 'up' as const, months: 25, isCurrentUser: false },
-    { rank: 15, branch: '정동', name: '종로2', points: 701827, change: 'down' as const, months: 289, isCurrentUser: false },
-    { rank: 38, branch: '정동', name: '서진일', points: 19510, change: 'stable' as const, months: 147, isCurrentUser: true }
-  ];
-
-  const regionData = [
-    { rank: 1, branch: '정동', name: '이현미', points: 2005073, change: 'up' as const, months: 216, isCurrentUser: false },
-    { rank: 2, branch: '로얄', name: '최명진', points: 1993939, change: 'up' as const, months: 275, isCurrentUser: false },
-    { rank: 3, branch: '불광', name: '지영란', points: 2405251, change: 'up' as const, months: 335, isCurrentUser: false },
-    { rank: 4, branch: '불광', name: '임정숙', points: 2002229, change: 'stable' as const, months: 338, isCurrentUser: false },
-    { rank: 5, branch: '정동', name: '채희관', points: 1583626, change: 'up' as const, months: 158, isCurrentUser: false },
-    { rank: 6, branch: '정동', name: '김지훈', points: 1548519, change: 'down' as const, months: 146, isCurrentUser: false },
-    { rank: 7, branch: '불광', name: '애은대리점', points: 1674011, change: 'up' as const, months: 353, isCurrentUser: false },
-    { rank: 8, branch: '로얄', name: '이현희', points: 1473181, change: 'stable' as const, months: 222, isCurrentUser: false },
-    { rank: 9, branch: '불광', name: '지영란', points: 1458780, change: 'up' as const, months: 335, isCurrentUser: false },
-    { rank: 10, branch: '정동', name: '홍백영', points: 1402058, change: 'stable' as const, months: 364, isCurrentUser: false }
-  ];
-
-  const rookieData = [
-    { rank: 1, branch: '로얄', name: '강혜연', points: 1099028, change: 'up' as const, months: 7, isCurrentUser: false },
-    { rank: 2, branch: '정동', name: '이금신', points: 1005203, change: 'up' as const, months: 9, isCurrentUser: false },
-    { rank: 3, branch: '로얄', name: '송정훈', points: 706554, change: 'up' as const, months: 3, isCurrentUser: false },
-    { rank: 4, branch: '로얄', name: '이예환', points: 524268, change: 'stable' as const, months: 11, isCurrentUser: false },
-    { rank: 5, branch: '로얄', name: '박달수', points: 506880, change: 'up' as const, months: 7, isCurrentUser: false },
-    { rank: 6, branch: '로얄', name: '이현', points: 451604, change: 'up' as const, months: 3, isCurrentUser: false },
-    { rank: 7, branch: '로얄', name: '전소영', points: 448128, change: 'stable' as const, months: 4, isCurrentUser: false },
-    { rank: 8, branch: '로얄', name: '김종원', points: 443928, change: 'up' as const, months: 1, isCurrentUser: false },
-    { rank: 9, branch: '로얄', name: '이한성', points: 442391, change: 'up' as const, months: 3, isCurrentUser: false },
-    { rank: 10, branch: '로얄', name: '안명남', points: 427990, change: 'down' as const, months: 4, isCurrentUser: false }
-  ];
-
-  // 지점별 컬러 매핑
-  const branchColors = {
-    '정동': { bg: 'bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-100', border: 'border-orange-200' },
-    '불광': { bg: 'bg-amber-50', text: 'text-amber-700', badge: 'bg-amber-100', border: 'border-amber-200' },
-    '로얄': { bg: 'bg-red-50', text: 'text-red-700', badge: 'bg-red-100', border: 'border-red-200' }
+  // 지점별 컬러 매핑 (동적으로 생성)
+  const getBranchColors = (branch: string) => {
+    const colorSchemes = [
+      { bg: 'bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-100', border: 'border-orange-200' },
+      { bg: 'bg-amber-50', text: 'text-amber-700', badge: 'bg-amber-100', border: 'border-amber-200' },
+      { bg: 'bg-red-50', text: 'text-red-700', badge: 'bg-red-100', border: 'border-red-200' },
+      { bg: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-100', border: 'border-blue-200' },
+      { bg: 'bg-green-50', text: 'text-green-700', badge: 'bg-green-100', border: 'border-green-200' },
+      { bg: 'bg-purple-50', text: 'text-purple-700', badge: 'bg-purple-100', border: 'border-purple-200' },
+      { bg: 'bg-pink-50', text: 'text-pink-700', badge: 'bg-pink-100', border: 'border-pink-200' },
+    ];
+    
+    // 지점명을 해시하여 일관된 색상 할당
+    const hash = branch.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colorSchemes[hash % colorSchemes.length];
   };
 
-  const newsItems = [
-    '🎉 정동지점 이현미 FP 200만점 돌파!',
-    '🔥 신인 강혜연 FP 1위 달성',
-    '⭐ 채희관 FP 지점 2위 선전',
-    '🏆 TOP 10 진입자 특별 보상 지급',
-    '💪 마감까지 3일 남았습니다',
-    '🎯 개인 목표 달성률 85% 돌파'
-  ];
+  // 동적 뉴스 아이템 생성
+  const getNewsItems = () => {
+    if (allData.length === 0) {
+      return ['📊 데이터를 불러오는 중입니다...'];
+    }
+
+    const sortedByPoints = [...allData].sort((a, b) => b.points - a.points);
+    const topPlayer = sortedByPoints[0];
+    const rookies = allData.filter(p => p.months <= 12).sort((a, b) => b.points - a.points);
+    const topRookie = rookies[0];
+    
+    const newsItems = [
+      topPlayer ? `🎉 ${topPlayer.branch} ${topPlayer.name} FP ${(topPlayer.points / 10000).toFixed(0)}만점 ${topPlayer.points >= 1000000 ? '돌파!' : '선전!'}` : '',
+      topRookie ? `🔥 신인 ${topRookie.name} FP ${topRookie.months}개월차 ${(topRookie.points / 10000).toFixed(0)}만점 달성` : '',
+      sortedByPoints[1] ? `⭐ ${sortedByPoints[1].name} FP 2위 선전` : '',
+      '🏆 TOP 10 진입자 특별 보상 지급',
+      '💪 마감까지 열심히 달려봅시다',
+      `🎯 전체 참가자 ${allData.length}명`
+    ].filter(Boolean);
+    
+    return newsItems.length > 0 ? newsItems : ['🎉 기네스 리더보드에 오신 것을 환영합니다!'];
+  };
 
   useEffect(() => {
     setAnimateRanks(true);
@@ -225,8 +233,8 @@ const LeaderboardApp = () => {
     return 'bg-white hover:bg-gray-50/50';
   };
 
-  const getBranchColor = (branch) => {
-    return branchColors[branch] || { bg: 'bg-gray-50', text: 'text-gray-700', badge: 'bg-gray-100', border: 'border-gray-200' };
+  const getBranchColor = (branch: string) => {
+    return getBranchColors(branch);
   };
 
   // 사번으로 사용자 검색
@@ -244,17 +252,42 @@ const LeaderboardApp = () => {
     }
   };
 
-  // 동일 지점단 데이터 필터링 및 순위 계산
-  const getFilteredData = () => {
-    if (!currentUser || allData.length === 0) {
+  // 데이터 필터링 및 순위 계산
+  const getCurrentData = () => {
+    if (allData.length === 0) {
       return [];
     }
 
-    // 동일 지점단만 필터링
-    const sameBranchData = allData.filter(person => person.branch === currentUser.branch);
+    let filteredData = [...allData];
+    
+    // 탭에 따른 필터링
+    switch(activeTab) {
+      case 'branch':
+        // 지점 탭: 사용자가 선택되면 동일 지점단만, 아니면 전체
+        if (currentUser) {
+          filteredData = filteredData.filter(person => person.branch === currentUser.branch);
+        }
+        break;
+        
+      case 'region':
+        // 지역단 탭: 사용자가 선택되면 동일 지역만, 아니면 전체
+        if (currentUser) {
+          filteredData = filteredData.filter(person => person.region === currentUser.region);
+        }
+        break;
+        
+      case 'rookie':
+        // 신인 탭: 12개월 이하만 필터링
+        filteredData = filteredData.filter(person => person.months <= 12);
+        // 사용자가 선택되면 동일 지점단 내 신인만
+        if (currentUser) {
+          filteredData = filteredData.filter(person => person.branch === currentUser.branch);
+        }
+        break;
+    }
     
     // 성적순으로 정렬 (내림차순)
-    const sortedData = [...sameBranchData].sort((a, b) => b.points - a.points);
+    const sortedData = filteredData.sort((a, b) => b.points - a.points);
     
     // 순위 부여
     return sortedData.map((person, index) => ({
@@ -264,39 +297,14 @@ const LeaderboardApp = () => {
       points: person.points,
       change: person.change,
       months: person.months,
-      isCurrentUser: person.employeeId === currentUser.employeeId
+      isCurrentUser: currentUser ? person.employeeId === currentUser.employeeId : false
     }));
-  };
-
-  const getCurrentData = () => {
-    // CSV 데이터가 로드되고 사용자가 선택되었으면 필터링된 데이터 사용
-    if (currentUser && allData.length > 0) {
-      const filteredData = getFilteredData();
-      
-      switch(activeTab) {
-        case 'branch':
-        case 'region':
-          return filteredData;
-        case 'rookie':
-          // 신인: 12개월 이하만 필터링
-          return filteredData.filter(person => person.months <= 12);
-        default:
-          return filteredData;
-      }
-    }
-    
-    // 기본 하드코딩된 데이터
-    switch(activeTab) {
-      case 'branch': return branchData;
-      case 'region': return regionData;
-      case 'rookie': return rookieData;
-      default: return branchData;
-    }
   };
 
   const currentData = getCurrentData();
   const top3 = currentData.slice(0, 3);
   const restData = currentData.slice(3);
+  const newsItems = getNewsItems();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 p-4">
@@ -316,9 +324,9 @@ const LeaderboardApp = () => {
 
           {/* 엑셀 파일 업로드 */}
           <div className="mb-3">
-            <label className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm cursor-pointer">
-              <Upload className="w-4 h-4" />
-              <span>엑셀 파일 업로드</span>
+            <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg cursor-pointer hover:shadow-xl transform hover:scale-[1.02]">
+              <Upload className="w-5 h-5" />
+              <span className="text-base">엑셀 파일 업로드</span>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -326,170 +334,210 @@ const LeaderboardApp = () => {
                 className="hidden"
               />
             </label>
-            <div className="mt-2 text-xs text-gray-600 text-center">
+            <div className="mt-2 text-xs text-center">
               {allData.length > 0 ? (
-                <p className="text-green-600 font-medium">✅ 로드된 데이터: {allData.length}명</p>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-green-700 font-bold text-sm">✅ 로드된 데이터: {allData.length}명</p>
+                  <p className="text-green-600 text-xs mt-1">대시보드가 활성화되었습니다!</p>
+                </div>
               ) : (
-                <p>파일을 업로드하거나 자동 로드를 기다려주세요.</p>
+                <div className="p-3 bg-orange-50 border-2 border-orange-300 rounded-lg">
+                  <p className="text-orange-800 font-bold text-sm mb-2">⚠️ 엑셀 파일을 업로드해주세요</p>
+                  <p className="text-orange-700 text-xs">데이터가 없으면 대시보드를 표시할 수 없습니다.</p>
+                </div>
               )}
-              <div className="mt-1 p-2 bg-gray-50 rounded-lg">
-                <p className="font-semibold text-gray-700 mb-1">📋 엑셀 파일 형식</p>
-                <p className="text-gray-600">
-                  <span className="font-medium">필수 컬럼:</span> 지역, 지점단, 사번, 이름, 성적, 차월
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="font-semibold text-blue-900 mb-1">📋 엑셀 파일 형식</p>
+                <p className="text-blue-800 text-left">
+                  <span className="font-medium">필수 컬럼:</span><br/>
+                  • 지점<br/>
+                  • 지역단<br/>
+                  • 사번<br/>
+                  • 이름<br/>
+                  • 성적<br/>
+                  • 차월
                 </p>
               </div>
             </div>
           </div>
 
           {/* 사번 검색 */}
-          <div className="mb-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearchEmployee()}
-                placeholder="사번을 입력하세요"
-                className="flex-1 px-4 py-2.5 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
-              />
-              <button
-                onClick={handleSearchEmployee}
-                className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-700 transition-all shadow-sm flex items-center gap-2"
-              >
-                <Search className="w-4 h-4" />
-                <span>검색</span>
-              </button>
-            </div>
-            {currentUser && (
-              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-xl">
-                <p className="text-sm text-orange-800">
-                  <span className="font-bold">{currentUser.name}</span>님 ({currentUser.region} - {currentUser.branch} 지점단) - 동일 지점단 내 순위를 표시합니다.
-                </p>
+          {allData.length > 0 && (
+            <div className="mb-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearchEmployee()}
+                  placeholder="사번을 입력하세요"
+                  className="flex-1 px-4 py-2.5 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                />
+                <button
+                  onClick={handleSearchEmployee}
+                  className="px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-700 transition-all shadow-sm flex items-center gap-2"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>검색</span>
+                </button>
               </div>
-            )}
-          </div>
+              {currentUser && (
+                <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                  <p className="text-sm text-orange-800">
+                    <span className="font-bold">{currentUser.name}</span>님 ({currentUser.region} - {currentUser.branch} 지점단) - 동일 지점단 내 순위를 표시합니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
-          <div className="flex gap-2 mb-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-2.5 px-3 rounded-xl font-medium transition-all text-sm shadow-sm ${
-                  activeTab === tab
-                    ? tab === 'rookie'
-                      ? 'bg-gradient-to-r from-orange-400 to-amber-500 text-white shadow-orange-200'
-                      : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-orange-200'
-                    : tab === 'rookie'
-                    ? 'bg-gradient-to-r from-orange-200 to-amber-300 text-orange-900 hover:from-orange-300 hover:to-amber-400'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {tabLabels[tab]}
-              </button>
-            ))}
-          </div>
+          {allData.length > 0 && (
+            <div className="flex gap-2 mb-4">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2.5 px-3 rounded-xl font-medium transition-all text-sm shadow-sm ${
+                    activeTab === tab
+                      ? tab === 'rookie'
+                        ? 'bg-gradient-to-r from-orange-400 to-amber-500 text-white shadow-orange-200'
+                        : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-orange-200'
+                      : tab === 'rookie'
+                      ? 'bg-gradient-to-r from-orange-200 to-amber-300 text-orange-900 hover:from-orange-300 hover:to-amber-400'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tabLabels[tab]}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <div className="bg-gray-900 rounded-xl overflow-hidden shadow-inner">
-            <div className="py-2.5 px-3">
-              <div className="overflow-hidden whitespace-nowrap">
-                <div className="inline-block animate-marquee">
-                  <span className="text-white text-sm font-medium">
-                    {newsItems.map((item, index) => (
-                      <span key={index} className="mx-8">{item}</span>
-                    ))}
-                  </span>
-                  <span className="text-white text-sm font-medium">
-                    {newsItems.map((item, index) => (
-                      <span key={`dup-${index}`} className="mx-8">{item}</span>
-                    ))}
-                  </span>
+          {allData.length > 0 && (
+            <div className="bg-gray-900 rounded-xl overflow-hidden shadow-inner">
+              <div className="py-2.5 px-3">
+                <div className="overflow-hidden whitespace-nowrap">
+                  <div className="inline-block animate-marquee">
+                    <span className="text-white text-sm font-medium">
+                      {newsItems.map((item, index) => (
+                        <span key={index} className="mx-8">{item}</span>
+                      ))}
+                    </span>
+                    <span className="text-white text-sm font-medium">
+                      {newsItems.map((item, index) => (
+                        <span key={`dup-${index}`} className="mx-8">{item}</span>
+                      ))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {allData.length === 0 ? (
+            <div className="flex justify-center items-center mt-6 p-10 bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl border-2 border-dashed border-orange-300">
+              <div className="text-center">
+                <div className="text-6xl mb-4">📊</div>
+                <p className="text-gray-800 font-bold text-lg mb-2">데이터가 없습니다</p>
+                <p className="text-gray-600 text-sm mb-4">위의 "엑셀 파일 업로드" 버튼을 클릭하여<br/>데이터를 업로드해주세요.</p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm border border-orange-200">
+                  <Upload className="w-4 h-4 text-orange-600" />
+                  <span className="text-orange-600 font-medium text-sm">엑셀 파일 필수</span>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex justify-center items-end gap-3 mt-6">
-            {/* 2nd Place */}
-            <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-4 opacity-0' : 'translate-y-0 opacity-100'}`}>
-              <div className="relative">
-                <div className="w-20 h-20 mx-auto mb-3 relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 rounded-full shadow-lg"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-5xl filter drop-shadow-md">🥈</span>
-                  </div>
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-gray-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    2nd
-                  </div>
-                </div>
+          ) : currentData.length >= 3 ? (
+            <div className="flex justify-center items-end gap-3 mt-6">
+              {/* 2nd Place */}
+              <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-4 opacity-0' : 'translate-y-0 opacity-100'}`}>
                 <div className="relative">
-                  <div className="w-24 h-20 bg-gradient-to-b from-gray-300 to-gray-400 rounded-t-xl shadow-lg">
-                    <div className="pt-2 text-center">
-                      <div className="text-[10px] text-gray-600 font-medium">{top3[1].branch}</div>
-                      <div className="text-sm font-bold text-gray-800">{top3[1].name}</div>
-                      <div className="text-xs text-gray-700 font-semibold mt-0.5">{getPointsDisplay(top3[1].points)}</div>
+                  <div className="w-20 h-20 mx-auto mb-3 relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 rounded-full shadow-lg"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-5xl filter drop-shadow-md">🥈</span>
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-gray-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      2nd
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 1st Place */}
-            <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-8 opacity-0' : 'translate-y-0 opacity-100'}`}>
-              <div className="relative">
-                <div className="w-28 h-28 mx-auto mb-3 relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-300 via-orange-400 to-amber-500 rounded-full shadow-xl ring-4 ring-orange-200"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-6xl filter drop-shadow-lg">🏆</span>
-                  </div>
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md">
-                    CHAMPION
-                  </div>
-                </div>
-                <div className="relative">
-                  <div className="w-32 h-28 bg-gradient-to-b from-orange-400 to-amber-500 rounded-t-xl shadow-xl">
-                    <div className="pt-3 text-center">
-                      <div className="text-xs text-orange-900 font-medium">{top3[0].branch}</div>
-                      <div className="text-lg font-bold text-orange-900">{top3[0].name}</div>
-                      <div className="text-sm text-orange-800 font-bold mt-1">
-                        <span className="text-xl">{getPointsDisplay(top3[0].points)}</span>
+                  <div className="relative">
+                    <div className="w-24 h-20 bg-gradient-to-b from-gray-300 to-gray-400 rounded-t-xl shadow-lg">
+                      <div className="pt-2 text-center">
+                        <div className="text-[10px] text-gray-600 font-medium">{top3[1].branch}</div>
+                        <div className="text-sm font-bold text-gray-800">{top3[1].name}</div>
+                        <div className="text-xs text-gray-700 font-semibold mt-0.5">{getPointsDisplay(top3[1].points)}</div>
                       </div>
                     </div>
                   </div>
-                  <div className="absolute -top-3 -left-2 text-orange-300 animate-pulse">✨</div>
-                  <div className="absolute -top-3 -right-2 text-orange-300 animate-pulse" style={{animationDelay: '0.5s'}}>✨</div>
                 </div>
               </div>
-            </div>
 
-            {/* 3rd Place */}
-            <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-4 opacity-0' : 'translate-y-0 opacity-100'}`}>
-              <div className="relative">
-                <div className="w-20 h-20 mx-auto mb-3 relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 rounded-full shadow-lg"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-5xl filter drop-shadow-md">🥉</span>
+              {/* 1st Place */}
+              <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-8 opacity-0' : 'translate-y-0 opacity-100'}`}>
+                <div className="relative">
+                  <div className="w-28 h-28 mx-auto mb-3 relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-300 via-orange-400 to-amber-500 rounded-full shadow-xl ring-4 ring-orange-200"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-6xl filter drop-shadow-lg">🏆</span>
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md">
+                      CHAMPION
+                    </div>
                   </div>
-                  <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    3rd
+                  <div className="relative">
+                    <div className="w-32 h-28 bg-gradient-to-b from-orange-400 to-amber-500 rounded-t-xl shadow-xl">
+                      <div className="pt-3 text-center">
+                        <div className="text-xs text-orange-900 font-medium">{top3[0].branch}</div>
+                        <div className="text-lg font-bold text-orange-900">{top3[0].name}</div>
+                        <div className="text-sm text-orange-800 font-bold mt-1">
+                          <span className="text-xl">{getPointsDisplay(top3[0].points)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute -top-3 -left-2 text-orange-300 animate-pulse">✨</div>
+                    <div className="absolute -top-3 -right-2 text-orange-300 animate-pulse" style={{animationDelay: '0.5s'}}>✨</div>
                   </div>
                 </div>
+              </div>
+
+              {/* 3rd Place */}
+              <div className={`text-center transition-all duration-500 ${animateRanks ? 'translate-y-4 opacity-0' : 'translate-y-0 opacity-100'}`}>
                 <div className="relative">
-                  <div className="w-24 h-16 bg-gradient-to-b from-amber-400 to-orange-500 rounded-t-xl shadow-lg">
-                    <div className="pt-1 text-center">
-                      <div className="text-[10px] text-amber-800 font-medium">{top3[2].branch}</div>
-                      <div className="text-sm font-bold text-amber-900">{top3[2].name}</div>
-                      <div className="text-xs text-amber-800 font-semibold mt-0.5">{getPointsDisplay(top3[2].points)}</div>
+                  <div className="w-20 h-20 mx-auto mb-3 relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 rounded-full shadow-lg"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-5xl filter drop-shadow-md">🥉</span>
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      3rd
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <div className="w-24 h-16 bg-gradient-to-b from-amber-400 to-orange-500 rounded-t-xl shadow-lg">
+                      <div className="pt-1 text-center">
+                        <div className="text-[10px] text-amber-800 font-medium">{top3[2].branch}</div>
+                        <div className="text-sm font-bold text-amber-900">{top3[2].name}</div>
+                        <div className="text-xs text-amber-800 font-semibold mt-0.5">{getPointsDisplay(top3[2].points)}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex justify-center items-center mt-6 p-8 bg-amber-50 rounded-xl border border-amber-200">
+              <p className="text-gray-700 text-center">
+                🔍 데이터가 충분하지 않습니다.<br/>
+                <span className="text-sm text-gray-600">다른 탭을 선택하거나 필터를 변경해보세요.</span>
+              </p>
+            </div>
+          )}
         </div>
 
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-4 shadow-lg border border-orange-50">
-          <div className="space-y-2">
-            {restData.map((player, index) => {
+        {allData.length > 0 && restData.length > 0 && (
+          <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-4 shadow-lg border border-orange-50">
+            <div className="space-y-2">
+              {restData.map((player, index) => {
               const colorScheme = getBranchColor(player.branch);
               
               return (
@@ -535,36 +583,39 @@ const LeaderboardApp = () => {
             })}
           </div>
 
-          <button className="w-full mt-4 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-700 transition-all shadow-md">
-            전체 순위 보기
-          </button>
-        </div>
+            <button className="w-full mt-4 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-700 transition-all shadow-md">
+              전체 순위 보기
+            </button>
+          </div>
+        )}
 
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
-            <Users className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">
-              {currentUser ? getFilteredData().length : allData.length || 147}
+        {allData.length > 0 && (
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
+              <Users className="w-5 h-5 mx-auto mb-2 text-orange-500" />
+              <div className="text-xl font-bold text-gray-800">
+                {currentData.length || allData.length || 0}
+              </div>
+              <div className="text-xs text-gray-600">
+                {currentUser ? `${activeTab === 'branch' ? '지점단' : activeTab === 'region' ? '지역' : '신인'} 참가자` : '전체 참가자'}
+              </div>
             </div>
-            <div className="text-xs text-gray-600">
-              {currentUser ? '지점단 참가자' : '전체 참가자'}
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
+              <Trophy className="w-5 h-5 mx-auto mb-2 text-orange-500" />
+              <div className="text-xl font-bold text-gray-800">
+                {currentUser ? currentData.find(p => p.isCurrentUser)?.rank || '-' : '-'}
+              </div>
+              <div className="text-xs text-gray-600">내 순위</div>
+            </div>
+            <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
+              <Star className="w-5 h-5 mx-auto mb-2 text-orange-500" />
+              <div className="text-xl font-bold text-gray-800">
+                {currentUser ? (currentUser.points / 1000).toFixed(1) + 'K' : '-'}
+              </div>
+              <div className="text-xs text-gray-600">내 포인트</div>
             </div>
           </div>
-          <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
-            <Trophy className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">
-              {currentUser ? getFilteredData().find(p => p.isCurrentUser)?.rank || '-' : '-'}
-            </div>
-            <div className="text-xs text-gray-600">내 순위</div>
-          </div>
-          <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
-            <Star className="w-5 h-5 mx-auto mb-2 text-orange-500" />
-            <div className="text-xl font-bold text-gray-800">
-              {currentUser ? (currentUser.points / 1000).toFixed(1) + 'K' : '-'}
-            </div>
-            <div className="text-xs text-gray-600">내 포인트</div>
-          </div>
-        </div>
+        )}
       </div>
 
       <style>{`

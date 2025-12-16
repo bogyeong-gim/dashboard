@@ -1,4 +1,5 @@
 export interface ExcelData {
+  지점: string;
   지역단: string;
   사번: string;
   이름: string;
@@ -23,6 +24,7 @@ export interface RankingData {
 }
 
 export type TabType = 'branch' | 'region' | 'rookie';
+
 
 
 
