@@ -148,7 +148,7 @@ const App: React.FC = () => {
       <Dashboard 
         rankingData={rankingData}
         currentUserId={currentUserId}
-        totalParticipants={excelData.length}
+        excelData={excelData}
         onLogout={handleLogout}
         onAdminClick={handleAdminClick}
       />

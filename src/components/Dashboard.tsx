@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Minus, LogOut } from 'lucide-react';
-import { RankedPlayer, TabType, RankingData } from '../types';
+import { RankedPlayer, TabType, RankingData, ExcelData } from '../types';
+
+// 신인 기준: 차월이 13개월 이하
+const ROOKIE_THRESHOLD = 13;
 
 interface DashboardProps {
   rankingData: RankingData;
   currentUserId: string;
-  totalParticipants: number;
+  excelData: ExcelData[];
   onLogout: () => void;
   onAdminClick: () => void;
 }
@@ -13,7 +16,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ 
   rankingData, 
   currentUserId, 
-  totalParticipants,
+  excelData,
   onLogout,
   onAdminClick
 }) => {
@@ -60,6 +63,48 @@ const Dashboard: React.FC<DashboardProps> = ({
   const currentData = getCurrentData();
   const top3 = currentData.slice(0, 3);
   const restData = currentData.slice(3);
+
+  // 로그인한 사용자의 지점과 지역단 정보 가져오기
+  const userInfo = useMemo(() => {
+    if (!currentUserId || excelData.length === 0) return null;
+    const user = excelData.find(item => item.사번 === currentUserId);
+    return user ? { branch: user.지점, region: user.지역단 } : null;
+  }, [currentUserId, excelData]);
+
+  // 탭에 따른 전체 참가자 수 계산
+  const getTotalParticipants = useMemo(() => {
+    if (excelData.length === 0) return 0;
+    
+    switch (activeTab) {
+      case 'branch':
+        // 지점 탭: 로그인한 사용자와 동일한 지점인 사람들의 전체 데이터 수
+        if (userInfo?.branch) {
+          return excelData.filter(item => item.지점 === userInfo.branch).length;
+        }
+        return excelData.length;
+        
+      case 'region':
+        // 지역단 탭: 로그인한 사용자와 동일한 지역단인 사람들의 전체 데이터 수
+        if (userInfo?.region) {
+          return excelData.filter(item => item.지역단 === userInfo.region).length;
+        }
+        return excelData.length;
+        
+      case 'rookie':
+        // 신인 탭: 로그인한 사용자의 지점의 신인 숫자
+        if (userInfo?.branch) {
+          return excelData.filter(
+            item => item.차월 <= ROOKIE_THRESHOLD && item.지점 === userInfo.branch
+          ).length;
+        }
+        return excelData.filter(item => item.차월 <= ROOKIE_THRESHOLD).length;
+        
+      default:
+        return excelData.length;
+    }
+  }, [activeTab, excelData, userInfo]);
+
+  const totalParticipants = getTotalParticipants;
 
   // 동적 뉴스 메시지 생성
   const newsItems = [
@@ -328,7 +373,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Users className="w-5 h-5 mx-auto mb-2 text-orange-500" />
             <div className="text-xl font-bold text-gray-800">{totalParticipants}</div>
-            <div className="text-xs text-gray-600">전체 참가자</div>
+            <div className="text-xs text-gray-600">
+              {activeTab === 'branch' ? '지점 참가자' : activeTab === 'region' ? '지역단 참가자' : '신인 참가자'}
+            </div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl p-4 text-center shadow-sm border border-orange-100">
             <Trophy className="w-5 h-5 mx-auto mb-2 text-orange-500" />
