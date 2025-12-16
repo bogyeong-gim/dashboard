@@ -16,19 +16,19 @@ export const processExcelData = (data: ExcelData[], currentUserId?: string): Ran
     }
   }
 
-  // 지점별 랭킹 (로그인한 사용자의 지점만)
+  // 지점별 랭킹 (로그인한 사용자의 지점만, 지점 내에서 순위 계산)
   const branchData = userBranch 
     ? data.filter(item => item.지점 === userBranch)
     : data;
   const branchRanking = createRanking(branchData, currentUserId);
 
-  // 지역단별 랭킹 (로그인한 사용자의 지역단만)
+  // 지역단별 랭킹 (로그인한 사용자의 지역단만, 지역단 내에서 순위 계산)
   const regionData = userRegion
     ? data.filter(item => item.지역단 === userRegion)
     : data;
   const regionRanking = createRanking(regionData, currentUserId);
 
-  // 신인 랭킹 (로그인한 사용자의 지점 내 신인만, 차월 12개월 이하)
+  // 신인 랭킹 (로그인한 사용자의 지점 내 신인만, 차월 13개월 이하, 지점 내 신인 중에서 순위 계산)
   const rookieData = userBranch
     ? data.filter(item => item.차월 <= ROOKIE_THRESHOLD && item.지점 === userBranch)
     : data.filter(item => item.차월 <= ROOKIE_THRESHOLD);
