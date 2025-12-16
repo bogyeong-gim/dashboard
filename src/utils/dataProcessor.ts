@@ -21,6 +21,12 @@ export const processExcelData = (data: ExcelData[], currentUserId?: string): Ran
     ? data.filter(item => item.지점 === userBranch)
     : data;
   const branchRanking = createRanking(branchData, currentUserId);
+  
+  console.log('🔍 지점별 랭킹:', {
+    지점: userBranch,
+    필터링된_데이터_수: branchData.length,
+    첫_3명_순위: branchRanking.slice(0, 3).map(p => ({ 이름: p.name, 순위: p.rank }))
+  });
 
   // 지역단별 랭킹 (로그인한 사용자의 지역단만, 지역단 내에서 순위 계산)
   const regionData = userRegion
@@ -42,19 +48,29 @@ export const processExcelData = (data: ExcelData[], currentUserId?: string): Ran
 };
 
 const createRanking = (data: ExcelData[], currentUserId?: string): RankedPlayer[] => {
+  // 필터링된 데이터가 비어있으면 빈 배열 반환
+  if (data.length === 0) {
+    return [];
+  }
+
   // 성적 기준으로 내림차순 정렬
   const sorted = [...data].sort((a, b) => b.성적 - a.성적);
 
   // 랭킹 부여 (필터링된 데이터 내에서 1등부터 시작)
-  const ranked: RankedPlayer[] = sorted.map((item, index) => ({
-    rank: index + 1, // 필터링된 그룹 내에서의 순위 (1, 2, 3...)
-    branch: item.지점,
-    employeeId: item.사번,
-    name: item.이름,
-    points: item.성적,
-    months: item.차월,
-    isCurrentUser: currentUserId ? item.사번 === currentUserId : false
-  }));
+  // 중요: index + 1로 필터링된 그룹 내에서의 순위를 부여
+  const ranked: RankedPlayer[] = sorted.map((item, index) => {
+    const localRank = index + 1; // 필터링된 그룹 내에서의 순위 (1, 2, 3...)
+    
+    return {
+      rank: localRank, // 지점/지역단 내 순위
+      branch: item.지점,
+      employeeId: item.사번,
+      name: item.이름,
+      points: item.성적,
+      months: item.차월,
+      isCurrentUser: currentUserId ? item.사번 === currentUserId : false
+    };
+  });
 
   // 현재 사용자의 순위 확인
   if (currentUserId) {

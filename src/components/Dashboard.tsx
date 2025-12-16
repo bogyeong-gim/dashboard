@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Minus, LogOut } from 'lucide-react';
+import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
 import { RankedPlayer, TabType, RankingData, ExcelData } from '../types';
 
 // 신인 기준: 차월이 13개월 이하
@@ -146,11 +146,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     setTouchStart(0);
     setTouchEnd(0);
-  };
-
-  const getChangeIcon = () => {
-    // 변동 정보가 없으므로 중립 아이콘 표시
-    return <Minus className="w-5 h-5 text-gray-400" />;
   };
 
   const getRankStyle = (isCurrentUser?: boolean) => {
@@ -333,10 +328,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div className="flex items-center gap-3 flex-1">
                     <div className={`text-lg font-bold ${player.isCurrentUser ? 'text-orange-600' : 'text-gray-700'} min-w-[35px]`}>
                       {player.rank}
-                    </div>
-                    
-                    <div className={`w-9 h-9 rounded-lg ${colorScheme.bg} border ${colorScheme.border} flex items-center justify-center`}>
-                      {getChangeIcon()}
                     </div>
                     
                     <div className="flex-1">
