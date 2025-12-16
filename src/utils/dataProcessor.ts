@@ -45,9 +45,9 @@ const createRanking = (data: ExcelData[], currentUserId?: string): RankedPlayer[
   // 성적 기준으로 내림차순 정렬
   const sorted = [...data].sort((a, b) => b.성적 - a.성적);
 
-  // 랭킹 부여
+  // 랭킹 부여 (필터링된 데이터 내에서 1등부터 시작)
   const ranked: RankedPlayer[] = sorted.map((item, index) => ({
-    rank: index + 1,
+    rank: index + 1, // 필터링된 그룹 내에서의 순위 (1, 2, 3...)
     branch: item.지점,
     employeeId: item.사번,
     name: item.이름,
@@ -62,7 +62,7 @@ const createRanking = (data: ExcelData[], currentUserId?: string): RankedPlayer[
     
     // 사용자가 15등 안에 없는 경우
     if (userIndex > 14) {
-      // 1~15등 + 사용자
+      // 상위 15명 + 사용자 (모두 필터링된 그룹 내 순위)
       return [...ranked.slice(0, 15), ranked[userIndex]];
     }
   }
