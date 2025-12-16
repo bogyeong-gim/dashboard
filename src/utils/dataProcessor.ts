@@ -1,17 +1,37 @@
 import { ExcelData, RankedPlayer, RankingData } from '../types';
 
-// 신인 기준: 차월이 12개월 이하
-const ROOKIE_THRESHOLD = 12;
+// 신인 기준: 차월이 13개월 이하
+const ROOKIE_THRESHOLD = 13;
 
 export const processExcelData = (data: ExcelData[], currentUserId?: string): RankingData => {
-  // 지점별 랭킹 (전체)
-  const branchRanking = createRanking(data, currentUserId);
+  // 로그인한 사용자의 지점과 지역단 정보 가져오기
+  let userBranch: string | undefined;
+  let userRegion: string | undefined;
+  
+  if (currentUserId) {
+    const userData = data.find(item => item.사번 === currentUserId);
+    if (userData) {
+      userBranch = userData.지점;
+      userRegion = userData.지역단;
+    }
+  }
 
-  // 지역단별 랭킹 (전체)
-  const regionRanking = createRanking(data, currentUserId);
+  // 지점별 랭킹 (로그인한 사용자의 지점만)
+  const branchData = userBranch 
+    ? data.filter(item => item.지점 === userBranch)
+    : data;
+  const branchRanking = createRanking(branchData, currentUserId);
 
-  // 신인 랭킹 (차월 12개월 이하만)
-  const rookieData = data.filter(item => item.차월 <= ROOKIE_THRESHOLD);
+  // 지역단별 랭킹 (로그인한 사용자의 지역단만)
+  const regionData = userRegion
+    ? data.filter(item => item.지역단 === userRegion)
+    : data;
+  const regionRanking = createRanking(regionData, currentUserId);
+
+  // 신인 랭킹 (로그인한 사용자의 지점 내 신인만, 차월 12개월 이하)
+  const rookieData = userBranch
+    ? data.filter(item => item.차월 <= ROOKIE_THRESHOLD && item.지점 === userBranch)
+    : data.filter(item => item.차월 <= ROOKIE_THRESHOLD);
   const rookieRanking = createRanking(rookieData, currentUserId);
 
   return {

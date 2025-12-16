@@ -164,14 +164,41 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
     setErrorMessage('');
 
     try {
-      // 1. 엑셀 파일 파싱하여 데이터 검증
+      // 1. 버킷 존재 여부 확인
+      console.log('🔍 버킷 존재 여부 확인 중...');
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('❌ 버킷 목록 조회 오류:', bucketsError);
+        throw new Error(`버킷 확인 실패: ${bucketsError.message}`);
+      }
+
+      const bucketExists = buckets?.some(bucket => bucket.name === BUCKET_NAME);
+      
+      if (!bucketExists) {
+        const errorMsg = `❌ 버킷 '${BUCKET_NAME}'이 존재하지 않습니다.\n\n` +
+          `해결 방법:\n` +
+          `1. Supabase 대시보드(https://supabase.com) 접속\n` +
+          `2. Storage 메뉴 클릭\n` +
+          `3. "Create a new bucket" 클릭\n` +
+          `4. Name: "${BUCKET_NAME}" 입력\n` +
+          `5. Public: ✅ 체크\n` +
+          `6. "Create bucket" 클릭\n\n` +
+          `버킷 생성 후 다시 업로드를 시도해주세요.`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log('✅ 버킷 확인 완료:', BUCKET_NAME);
+
+      // 2. 엑셀 파일 파싱하여 데이터 검증
       const data = await parseExcelFile(file);
       
       if (data.length === 0) {
         throw new Error('엑셀 파일에 데이터가 없습니다.');
       }
 
-      // 2. Supabase Storage에 업로드 (모든 기기에서 접근 가능!)
+      // 3. Supabase Storage에 업로드 (모든 기기에서 접근 가능!)
       console.log('📤 Supabase Storage에 업로드 중...');
       const { error: uploadError } = await supabase.storage
         .from(BUCKET_NAME)
@@ -182,6 +209,48 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
 
       if (uploadError) {
         console.error('❌ 업로드 오류:', uploadError);
+        
+        // 버킷이 없는 경우 더 명확한 메시지 표시
+        if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
+          throw new Error(
+            `❌ 버킷 '${BUCKET_NAME}'을 찾을 수 없습니다.\n\n` +
+            `Supabase 대시보드에서 Storage 버킷을 생성해주세요:\n` +
+            `1. https://supabase.com 접속\n` +
+            `2. 프로젝트 선택 → Storage 메뉴\n` +
+            `3. "Create a new bucket" 클릭\n` +
+            `4. Name: "${BUCKET_NAME}"\n` +
+            `5. Public: ✅ 체크\n` +
+            `6. 생성 후 다시 시도`
+          );
+        }
+        
+        // RLS 정책 오류인 경우
+        if (uploadError.message.includes('row-level security') || uploadError.message.includes('violates') || uploadError.message.includes('policy')) {
+          throw new Error(
+            `❌ 업로드 권한이 없습니다. (RLS 정책 오류)\n\n` +
+            `Supabase 대시보드에서 Storage 정책을 설정해주세요:\n\n` +
+            `[방법 1: SQL Editor 사용 - 가장 간단]\n` +
+            `1. Supabase 대시보드 → SQL Editor 클릭\n` +
+            `2. 다음 SQL을 복사해서 붙여넣기:\n\n` +
+            `CREATE POLICY "Allow public uploads" ON storage.objects\n` +
+            `FOR INSERT TO public\n` +
+            `WITH CHECK (bucket_id = 'excel-files');\n\n` +
+            `3. "Run" 버튼 클릭\n\n` +
+            `[방법 2: 대시보드 UI 사용]\n` +
+            `1. Storage → excel-files 버킷 클릭\n` +
+            `2. "Policies" 탭 클릭\n` +
+            `3. "New Policy" → "Create a policy from scratch"\n` +
+            `4. Policy name 필드에만 입력: Allow public uploads\n` +
+            `5. Allowed operation: INSERT 선택\n` +
+            `6. WITH CHECK expression 필드에만 입력:\n` +
+            `   bucket_id = 'excel-files'\n` +
+            `   (설명 텍스트는 입력하지 마세요!)\n` +
+            `7. Target roles: public 체크\n` +
+            `8. "Save policy" 클릭\n\n` +
+            `⚠️ 주의: 각 필드에는 값만 입력하고, 설명 텍스트는 입력하지 마세요!`
+          );
+        }
+        
         throw new Error(`업로드 실패: ${uploadError.message}`);
       }
 
@@ -354,9 +423,9 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
             <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-red-900 mb-1">업로드 실패</p>
-                  <p className="text-sm text-red-800">{errorMessage}</p>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-900 mb-2">업로드 실패</p>
+                  <p className="text-sm text-red-800 whitespace-pre-line leading-relaxed">{errorMessage}</p>
                 </div>
               </div>
             </div>

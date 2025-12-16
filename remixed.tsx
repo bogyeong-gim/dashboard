@@ -113,6 +113,34 @@ const LeaderboardApp = () => {
     try {
       console.log('📤 Supabase Storage로 파일 업로드 중...');
       
+      // 버킷 존재 여부 확인
+      console.log('🔍 버킷 존재 여부 확인 중...');
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('❌ 버킷 목록 조회 오류:', bucketsError);
+        throw new Error(`버킷 확인 실패: ${bucketsError.message}`);
+      }
+
+      const bucketExists = buckets?.some(bucket => bucket.name === BUCKET_NAME);
+      
+      if (!bucketExists) {
+        const errorMsg = `❌ 버킷 '${BUCKET_NAME}'이 존재하지 않습니다.\n\n` +
+          `해결 방법:\n` +
+          `1. Supabase 대시보드(https://supabase.com) 접속\n` +
+          `2. Storage 메뉴 클릭\n` +
+          `3. "Create a new bucket" 클릭\n` +
+          `4. Name: "${BUCKET_NAME}" 입력\n` +
+          `5. Public: ✅ 체크\n` +
+          `6. "Create bucket" 클릭\n\n` +
+          `버킷 생성 후 다시 업로드를 시도해주세요.`;
+        console.error(errorMsg);
+        alert(errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log('✅ 버킷 확인 완료:', BUCKET_NAME);
+      
       // Supabase Storage에 파일 업로드 (기존 파일 덮어쓰기)
       console.log('📤 업로드 시도:', {
         버킷: BUCKET_NAME,
@@ -133,6 +161,21 @@ const LeaderboardApp = () => {
           상태: uploadError.name,
           전체오류: uploadError
         });
+        
+        // 버킷이 없는 경우 더 명확한 메시지 표시
+        if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
+          const errorMsg = `❌ 버킷 '${BUCKET_NAME}'을 찾을 수 없습니다.\n\n` +
+            `Supabase 대시보드에서 Storage 버킷을 생성해주세요:\n` +
+            `1. https://supabase.com 접속\n` +
+            `2. 프로젝트 선택 → Storage 메뉴\n` +
+            `3. "Create a new bucket" 클릭\n` +
+            `4. Name: "${BUCKET_NAME}"\n` +
+            `5. Public: ✅ 체크\n` +
+            `6. 생성 후 다시 시도`;
+          alert(errorMsg);
+          throw new Error(errorMsg);
+        }
+        
         throw uploadError;
       }
 
