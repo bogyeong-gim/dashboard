@@ -34,6 +34,15 @@ const LeaderboardApp = () => {
     const loadData = async () => {
       try {
         console.log('📥 Supabase에서 데이터 로드 중...');
+        console.log('사용 중인 버킷:', BUCKET_NAME, '파일명:', FILE_NAME);
+        
+        // 디버깅: 사용 가능한 버킷 목록 확인
+        const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+        if (bucketsError) {
+          console.error('❌ 버킷 목록 조회 오류:', bucketsError);
+        } else {
+          console.log('📦 사용 가능한 버킷 목록:', buckets?.map(b => b.name) || []);
+        }
         
         // Supabase Storage에서 파일 다운로드
         const { data: fileData, error } = await supabase.storage
@@ -43,7 +52,11 @@ const LeaderboardApp = () => {
         // 파일이 없으면 무시
         if (error) {
           console.log('ℹ️ 업로드된 파일이 없습니다. 엑셀 파일을 업로드해주세요.');
-          console.log('에러 상세:', error.message);
+          console.error('❌ 에러 상세:', {
+            메시지: error.message,
+            이름: error.name,
+            전체오류: error
+          });
           setAllData([]);
           return;
         }
@@ -101,6 +114,12 @@ const LeaderboardApp = () => {
       console.log('📤 Supabase Storage로 파일 업로드 중...');
       
       // Supabase Storage에 파일 업로드 (기존 파일 덮어쓰기)
+      console.log('📤 업로드 시도:', {
+        버킷: BUCKET_NAME,
+        파일명: FILE_NAME,
+        파일크기: (file.size / 1024).toFixed(2) + 'KB'
+      });
+      
       const { error: uploadError } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(FILE_NAME, file, {
@@ -109,6 +128,11 @@ const LeaderboardApp = () => {
         });
 
       if (uploadError) {
+        console.error('❌ 업로드 오류 상세:', {
+          메시지: uploadError.message,
+          상태: uploadError.name,
+          전체오류: uploadError
+        });
         throw uploadError;
       }
 
