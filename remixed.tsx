@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Star, Users, Calendar, ChevronLeft, ChevronUp, ChevronDown, Minus, Search, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { supabase, BUCKET_NAME, FILE_NAME } from './lib/supabase';
 
 interface EmployeeData {
   region: string;        // 지역단
@@ -28,30 +29,33 @@ const LeaderboardApp = () => {
     rookie: '신인'
   };
 
-  // 서버에서 엑셀 파일 로드 (초기 로드 - 파일이 없으면 무시)
+  // Supabase에서 엑셀 파일 로드 (초기 로드 - 파일이 없으면 무시)
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/data');
+        console.log('📥 Supabase에서 데이터 로드 중...');
         
-        // 404면 파일이 없는 것이므로 무시
-        if (response.status === 404) {
+        // Supabase Storage에서 파일 다운로드
+        const { data: fileData, error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .download(FILE_NAME);
+        
+        // 파일이 없으면 무시
+        if (error) {
           console.log('ℹ️ 업로드된 파일이 없습니다. 엑셀 파일을 업로드해주세요.');
+          console.log('에러 상세:', error.message);
           setAllData([]);
           return;
         }
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const buffer = await response.arrayBuffer();
+        // Blob을 ArrayBuffer로 변환
+        const buffer = await fileData.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
         
-        console.log('📊 서버에서 데이터 로드 완료:', {
+        console.log('📊 Supabase에서 데이터 로드 완료:', {
           시트명: sheetName,
           총데이터수: jsonData.length,
           첫번째행샘플: jsonData[0]
@@ -80,8 +84,7 @@ const LeaderboardApp = () => {
         
         setAllData(data);
       } catch (error) {
-        console.error('❌ 서버에서 데이터 로드 오류:', error);
-        console.log('서버가 실행 중인지 확인해주세요. (npm run server)');
+        console.error('❌ Supabase에서 데이터 로드 오류:', error);
         setAllData([]);
       }
     };
@@ -89,33 +92,39 @@ const LeaderboardApp = () => {
     loadData();
   }, []);
 
-  // 서버로 엑셀 파일 업로드 (관리자용)
+  // Supabase Storage로 엑셀 파일 업로드 (관리자용)
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      // FormData로 파일 전송
-      const formData = new FormData();
-      formData.append('file', file);
-
-      console.log('📤 서버로 파일 업로드 중...');
+      console.log('📤 Supabase Storage로 파일 업로드 중...');
       
-      const response = await fetch('http://localhost:3001/api/upload', {
-        method: 'POST',
-        body: formData
-      });
+      // Supabase Storage에 파일 업로드 (기존 파일 덮어쓰기)
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(FILE_NAME, file, {
+          cacheControl: '3600',
+          upsert: true // 기존 파일 덮어쓰기
+        });
 
-      if (!response.ok) {
-        throw new Error('업로드 실패');
+      if (uploadError) {
+        throw uploadError;
       }
 
-      const result = await response.json();
-      console.log('✅ 서버 업로드 성공:', result);
+      console.log('✅ Supabase 업로드 성공!');
 
       // 업로드 후 데이터 다시 로드
-      const dataResponse = await fetch('http://localhost:3001/api/data');
-      const buffer = await dataResponse.arrayBuffer();
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .download(FILE_NAME);
+
+      if (downloadError) {
+        throw downloadError;
+      }
+
+      // Blob을 ArrayBuffer로 변환
+      const buffer = await fileData.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -136,13 +145,13 @@ const LeaderboardApp = () => {
       }).filter(item => item.employeeId && item.name && item.branch);
 
       setAllData(data);
-      alert(`✅ 엑셀 파일이 서버에 업로드되었습니다! (${data.length}명의 데이터)\n모든 사용자가 업데이트된 데이터를 볼 수 있습니다.`);
+      alert(`✅ 엑셀 파일이 업로드되었습니다! (${data.length}명의 데이터)\n모든 사용자가 업데이트된 데이터를 볼 수 있습니다.`);
       
       // 파일 입력 초기화
       event.target.value = '';
     } catch (error) {
       console.error('❌ 업로드 오류:', error);
-      alert('파일 업로드 중 오류가 발생했습니다. 서버가 실행 중인지 확인해주세요.');
+      alert(`파일 업로드 중 오류가 발생했습니다.\n\n오류: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\nSupabase 설정을 확인해주세요.`);
     }
   };
 

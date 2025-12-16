@@ -71,32 +71,3 @@ export const getUserRankInfo = (data: ExcelData[], employeeId: string) => {
   };
 };
 
-// 로컬 스토리지에 데이터 저장
-export const saveDataToStorage = (data: ExcelData[]) => {
-  localStorage.setItem('leaderboardData', JSON.stringify(data));
-  localStorage.setItem('lastUpdated', new Date().toISOString());
-};
-
-// 로컬 스토리지에서 데이터 불러오기
-export const loadDataFromStorage = (): ExcelData[] | null => {
-  const data = localStorage.getItem('leaderboardData');
-  if (data) {
-    try {
-      return JSON.parse(data);
-    } catch (error) {
-      console.error('Failed to parse data from storage:', error);
-      return null;
-    }
-  }
-  return null;
-};
-
-// 마지막 업데이트 시간 가져오기
-export const getLastUpdatedTime = (): string | null => {
-  return localStorage.getItem('lastUpdated');
-};
-
-
-
-
-

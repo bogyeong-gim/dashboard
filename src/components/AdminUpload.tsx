@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, ArrowLeft, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { supabase, BUCKET_NAME, FILE_NAME } from '../lib/supabase';
 
 interface ExcelData {
   지점: string;
@@ -163,16 +164,32 @@ const AdminUpload: React.FC<AdminUploadProps> = ({ onDataUpload, onBack }) => {
     setErrorMessage('');
 
     try {
+      // 1. 엑셀 파일 파싱하여 데이터 검증
       const data = await parseExcelFile(file);
       
       if (data.length === 0) {
         throw new Error('엑셀 파일에 데이터가 없습니다.');
       }
 
+      // 2. Supabase Storage에 업로드 (모든 기기에서 접근 가능!)
+      console.log('📤 Supabase Storage에 업로드 중...');
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(FILE_NAME, file, {
+          cacheControl: '3600',
+          upsert: true // 기존 파일 덮어쓰기
+        });
+
+      if (uploadError) {
+        console.error('❌ 업로드 오류:', uploadError);
+        throw new Error(`업로드 실패: ${uploadError.message}`);
+      }
+
+      console.log('✅ Supabase Storage 업로드 성공!');
       setPreviewData(data.slice(0, 5)); // 처음 5개만 미리보기
       setUploadStatus('success');
       
-      // 데이터 저장
+      // 3. 부모 컴포넌트에 데이터 전달
       setTimeout(() => {
         onDataUpload(data);
       }, 1500);

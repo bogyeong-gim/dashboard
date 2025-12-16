@@ -6,6 +6,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue?logo=typescript)
 ![Vite](https://img.shields.io/badge/Vite-5.0-purple?logo=vite)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-cyan?logo=tailwindcss)
+![Supabase](https://img.shields.io/badge/Supabase-Latest-green?logo=supabase)
 
 ## ✨ 주요 기능
 
@@ -36,15 +37,17 @@
 
 ### 📤 엑셀 파일 관리
 - 드래그 앤 드롭 또는 버튼 클릭으로 업로드
+- Supabase Storage에 영구 저장
 - 자동 데이터 파싱 및 검증
-- **초기 데이터 없음 - 엑셀 업로드 필수** ⚠️
-- 실시간 데이터 업데이트
+- **모든 기기에서 동일한 데이터 공유** ✨
 
 ### 🎨 동적 UI
 - 지점별 자동 색상 할당 (7가지 색상 팔레트)
 - 스와이프 제스처로 탭 전환 (모바일 최적화)
 - 반응형 디자인
 - 부드러운 애니메이션 효과
+
+---
 
 ## 📋 엑셀 파일 형식
 
@@ -67,15 +70,9 @@
 | 불광 | 서울 | 1000002 | 이서연 | 820000 | 36 |
 | 로얄 | 경기 | 1000003 | 박지호 | 795000 | 18 |
 
-### 엑셀 파일 준비 방법
+---
 
-1. **엑셀 파일 생성**: Excel 또는 Google Sheets에서 위 형식대로 작성
-2. **파일 저장**: `.xlsx` 또는 `.xls` 형식으로 저장
-3. **업로드**: 앱에서 "엑셀 파일 업로드" 버튼 클릭하여 업로드
-
-⚠️ **주의**: 초기 데이터 없음 - 엑셀 파일 업로드 필수!
-
-## 🚀 실행 방법
+## 🚀 빠른 시작 (로컬 개발)
 
 ### 1. 의존성 설치
 
@@ -83,24 +80,40 @@
 npm install
 ```
 
-### 2. 서버 실행 (필수! ⚠️)
+### 2. Supabase 프로젝트 생성
 
-**백엔드 서버를 먼저 실행해야 합니다:**
+1. **[supabase.com](https://supabase.com) 가입** (무료)
+   - GitHub 계정으로 로그인
 
-```bash
-npm run server
+2. **새 프로젝트 생성**
+   - "New Project" 클릭
+   - Name: `dashboard`
+   - Database Password: 안전한 비밀번호 입력
+   - Region: `Northeast Asia (Seoul)` 선택 ⭐
+   - "Create new project" 클릭
+
+3. **Storage 버킷 생성**
+   - 왼쪽 메뉴 → "Storage" 클릭
+   - "Create a new bucket" 클릭
+   - Name: `excel-files`
+   - Public: ✅ 체크
+   - "Create bucket" 클릭
+
+4. **API 키 복사**
+   - Settings → API
+   - `Project URL` 복사
+   - `anon public` 키 복사
+
+### 3. 환경 변수 설정
+
+프로젝트 루트에 `.env` 파일 생성:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-public-key
 ```
 
-서버가 `http://localhost:3001`에서 실행됩니다.
-
-**서버가 제공하는 기능:**
-- 관리자가 업로드한 엑셀 파일을 모든 사용자에게 공유
-- 파일 영구 저장 (서버 재시작해도 유지)
-- 초기 로드 시 기본 파일 제공
-
-### 3. 개발 서버 실행
-
-**새 터미널 창을 열어서** 프론트엔드 실행:
+### 4. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -108,46 +121,80 @@ npm run dev
 
 브라우저에서 `http://localhost:5173` 접속
 
-### 4. 프로덕션 빌드
+### 5. 엑셀 파일 업로드
+
+1. 앱 화면에서 "엑셀 파일 업로드" 버튼 클릭
+2. 위의 "엑셀 파일 형식"에 맞는 파일 선택
+3. 업로드 완료 후 대시보드 자동 표시 ✅
+
+---
+
+## 🌍 프로덕션 배포 (Vercel)
+
+### 전제 조건
+
+- ✅ Supabase 프로젝트 생성 완료
+- ✅ `excel-files` 버킷 생성 완료
+- ✅ API URL과 Anon Key 확보
+
+### Vercel CLI 배포 (추천)
 
 ```bash
-npm run build
+# 1. Vercel CLI 설치
+npm install -g vercel
+
+# 2. 로그인
+vercel login
+
+# 3. 환경 변수 설정
+vercel env add VITE_SUPABASE_URL production
+# 입력: https://your-project.supabase.co
+
+vercel env add VITE_SUPABASE_ANON_KEY production
+# 입력: your-anon-public-key
+
+# 4. 배포
+vercel --prod
 ```
 
-빌드된 파일은 `dist/` 폴더에 생성됩니다.
+### Vercel 대시보드 배포
 
-### 5. 프로덕션 미리보기
+1. **[vercel.com](https://vercel.com) 가입**
+   - GitHub 계정으로 로그인
 
-```bash
-npm run preview
-```
+2. **새 프로젝트 생성**
+   - "New Project" 클릭
+   - GitHub 저장소 선택
+   - "Import" 클릭
 
-### ⚙️ 실행 순서 요약
+3. **환경 변수 설정**
+   - "Environment Variables" 섹션:
+     ```
+     VITE_SUPABASE_URL = https://your-project.supabase.co
+     VITE_SUPABASE_ANON_KEY = your-anon-public-key
+     ```
 
-```bash
-# 터미널 1: 백엔드 서버
-npm run server
+4. **Deploy 클릭**
 
-# 터미널 2: 프론트엔드 개발 서버
-npm run dev
-```
+5. **완료!** 🎉
+   - 배포된 URL로 접속
+   - 모든 기기에서 동일한 데이터 확인 가능
+
+---
 
 ## 📱 사용 방법
 
-### 초기 설정
+### 관리자
 
-1. **서버 실행** (필수!)
-   - 백엔드 서버 시작: `npm run server`
-   - 서버가 `http://localhost:3001`에서 실행됨
+1. **엑셀 파일 업로드**
+   - "엑셀 파일 업로드" 버튼 클릭
+   - 새로운 엑셀 파일 선택
+   - 자동으로 Supabase에 저장됨
+   - **모든 사용자에게 즉시 반영** ✨
 
-2. **앱 실행**
-   - 개발 서버 시작: `npm run dev`
-   - 브라우저에서 `http://localhost:5173` 접속
-
-3. **엑셀 파일 업로드** (필수!)
-   - 앱 화면에서 "엑셀 파일 업로드" 버튼 클릭
-   - 위의 "엑셀 파일 형식"에 맞게 작성한 엑셀 파일 선택
-   - 업로드 완료 후 대시보드 자동 표시
+2. **데이터 확인**
+   - 업로드 후 로드된 데이터 수 확인
+   - 각 탭에서 데이터 정상 표시 확인
 
 ### 일반 사용자
 
@@ -163,16 +210,7 @@ npm run dev
 3. **개인 통계 확인**
    - 하단에 참가자 수, 내 순위, 내 포인트 표시
 
-### 관리자
-
-1. **데이터 업데이트**
-   - "엑셀 파일 업로드" 버튼 클릭
-   - 새로운 엑셀 파일 선택
-   - 자동으로 데이터 파싱 및 업데이트
-
-2. **데이터 확인**
-   - 업로드 후 로드된 데이터 수 확인
-   - 각 탭에서 데이터 정상 표시 확인
+---
 
 ## 🛠️ 기술 스택
 
@@ -182,345 +220,212 @@ npm run dev
 - **Vite 5.0** - 빌드 도구
 - **Tailwind CSS 3.4** - 스타일링
 
-### Backend
-- **Node.js** - 서버 런타임
-- **Express.js** - 웹 서버 프레임워크
-- **Multer** - 파일 업로드 처리
-- **CORS** - Cross-Origin 요청 지원
+### Backend (Serverless)
+- **Supabase Storage** - 엑셀 파일 클라우드 저장
+  - 모든 기기에서 동일한 데이터 공유 ✨
+  - 영구 저장 및 자동 백업
+  - 글로벌 CDN으로 빠른 다운로드
 
 ### Libraries
+- **@supabase/supabase-js** - Supabase 클라이언트
 - **xlsx 0.18.5** - 엑셀 파일 파싱
 - **lucide-react 0.294** - 아이콘 라이브러리
 
-### Development
-- **ESLint** - 코드 품질
-- **PostCSS** - CSS 후처리
-- **Autoprefixer** - 브라우저 호환성
+---
 
 ## 🏗️ 시스템 아키텍처
 
 ```
-┌─────────────────┐
-│  관리자         │
-│  (엑셀 업로드)   │
-└────────┬────────┘
-         │ POST /api/upload
-         ↓
-┌─────────────────────┐
-│  Express 서버       │
-│  (localhost:3001)   │
-│  - 파일 저장        │
-│  - 파일 제공        │
-└────────┬────────────┘
-         │ GET /api/data
-         ↓
-┌─────────────────┐
-│  일반 사용자     │
-│  (리더보드 조회) │
-└─────────────────┘
+┌─────────────────────────────────────┐
+│         사용자 (모든 기기)           │
+│  - PC, 모바일, 태블릿 등             │
+└───────────┬─────────────────────────┘
+            │ URL 접속
+            ↓
+┌─────────────────────────────────────┐
+│      Vercel (프론트엔드 CDN)        │
+│  - React/Vite 앱                    │
+│  - UI 렌더링                        │
+│  - 엑셀 파싱 (브라우저)             │
+└───────────┬─────────────────────────┘
+            │ Storage API 호출
+            ↓
+┌─────────────────────────────────────┐
+│   Supabase Storage (클라우드)       │
+│  - latest.xlsx 파일 저장            │
+│  - 글로벌 CDN (빠른 다운로드)       │
+│  - 자동 백업 및 영구 저장           │
+└─────────────────────────────────────┘
 ```
 
 ### 데이터 흐름
 
-1. **초기 상태**: 서버에 파일이 없으면 빈 화면 표시 (엑셀 업로드 필수!)
-2. **관리자 업로드**: 엑셀 파일 → 서버 → `uploads/latest.xlsx`로 저장
-3. **사용자 접속**: 서버에서 `latest.xlsx` 다운로드 → 화면 렌더링
-4. **데이터 공유**: 모든 사용자가 같은 파일을 보게 됨
+1. **관리자가 파일 업로드** (어떤 기기에서든)
+   - 엑셀 파일 → Supabase Storage에 업로드
+   - 기존 `latest.xlsx` 파일 자동 덮어쓰기
+   - ✅ 클라우드에 영구 저장
 
-## 📂 프로젝트 구조
+2. **사용자가 접속** (어떤 기기에서든)
+   - Supabase Storage에서 `latest.xlsx` 다운로드
+   - 브라우저에서 실시간 파싱 및 렌더링
+   - ✅ **모든 기기에서 동일한 최신 데이터 표시!**
 
-```
-dashboard/
-├── public/                        # 정적 파일 폴더 (비어있음)
-├── uploads/                       # 서버에 업로드된 파일 저장 폴더
-│   └── latest.xlsx                # 관리자가 업로드한 최신 파일 (업로드 후 생성됨)
-├── src/
-│   ├── components/
-│   │   ├── AdminUpload.tsx        # 관리자 업로드 페이지
-│   │   ├── Dashboard.tsx          # 메인 대시보드
-│   │   └── Login.tsx              # 로그인 페이지
-│   ├── types/
-│   │   └── index.ts               # TypeScript 타입 정의
-│   ├── utils/
-│   │   └── dataProcessor.ts       # 데이터 처리 유틸
-│   ├── App.tsx                    # 메인 앱 컴포넌트
-│   ├── index.css                  # 전역 스타일
-│   └── main.tsx                   # 엔트리 포인트
-├── server.cjs                     # Express 백엔드 서버 ⭐
-├── remixed.tsx                    # 단일 페이지 리더보드 (독립 실행 가능)
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── tailwind.config.js
-```
+3. **데이터 공유 원리**
+   - ❌ localStorage 사용 안 함 (각 기기마다 다름)
+   - ✅ Supabase Storage 사용 (클라우드에서 공유)
 
-## 🎯 핵심 컴포넌트
-
-### server.cjs - 백엔드 서버 ⭐
-모든 사용자가 같은 데이터를 볼 수 있게 하는 서버
-
-**API 엔드포인트:**
-
-| 메서드 | 경로 | 설명 | 사용자 |
-|--------|------|------|--------|
-| POST | `/api/upload` | 엑셀 파일 업로드 | 관리자 |
-| GET | `/api/data` | 엑셀 파일 다운로드 | 모두 |
-| GET | `/api/health` | 서버 상태 확인 | 모두 |
-| GET | `/api/info` | 파일 정보 조회 | 모두 |
-
-**파일 저장 방식:**
-- 업로드된 파일은 `uploads/latest.xlsx`로 저장
-- 항상 최신 파일로 덮어씀 (히스토리 없음)
-- 서버 재시작해도 파일 유지
-
-### remixed.tsx - 단일 페이지 리더보드
-로그인 없이 바로 사용 가능한 독립 컴포넌트
-
-**주요 기능:**
-- 서버에서 엑셀 파일 자동 로드
-- 관리자용 파일 업로드 (서버로 전송)
-- 사번 검색
-- 동적 랭킹 계산
-- TOP 3 시각화
-- 실시간 뉴스 마퀴
-
-**State 관리:**
-```typescript
-interface EmployeeData {
-  region: string;        // 지역
-  branch: string;        // 지점단
-  employeeId: string;    // 사번
-  name: string;          // 이름
-  points: number;        // 성적
-  months: number;        // 차월
-  change: 'up' | 'down' | 'stable';
-}
-```
-
-## 🔄 데이터 흐름
-
-### 관리자가 파일 업로드할 때
-
-```
-관리자 → 파일 선택
-    ↓
-FormData로 서버에 POST /api/upload
-    ↓
-서버: uploads/latest.xlsx 저장
-    ↓
-클라이언트: GET /api/data로 재로드
-    ↓
-XLSX 파싱 → EmployeeData[] 변환
-    ↓
-allData State 업데이트
-    ↓
-UI 렌더링 (모든 사용자에게 반영)
-```
-
-### 일반 사용자가 접속할 때
-
-```
-페이지 로드
-    ↓
-GET /api/data로 서버에서 파일 다운로드
-    ↓
-XLSX 파싱 → EmployeeData[] 변환
-    ↓
-allData State 업데이트
-    ↓
-getCurrentData() - 필터링 및 정렬
-    ↓
-UI 렌더링 (TOP 3 + 나머지 순위)
-```
-
-## 🎨 UI/UX 특징
-
-### 색상 시스템
-- **주황색 계열**: 메인 테마 (1위, 하이라이트)
-- **회색**: 2위
-- **황금색**: 3위
-- **동적 지점 색상**: 7가지 팔레트에서 자동 할당
-
-### 애니메이션
-- 탭 전환 시 순위 슬라이드 효과
-- TOP 3 등장 애니메이션
-- 뉴스 마퀴 무한 스크롤
-- 부드러운 hover 효과
-
-### 반응형 디자인
-- 모바일 우선 디자인
-- 스와이프 제스처 지원
-- 최대 너비 제한으로 가독성 확보
-- 작은 화면에 최적화된 폰트 크기
-
-## 🔒 데이터 보안
-
-- 엑셀 파일은 서버의 `uploads/` 폴더에 저장 (Git에서 제외됨)
-- 외부 DB 없음 - 파일 시스템만 사용
-- 민감한 정보 없음 (사번, 이름, 성적만)
-- CORS 설정으로 허용된 도메인만 접근 가능
-
-### 보안 권장사항
-
-프로덕션 환경에서는:
-1. **인증 추가**: 관리자 페이지에 비밀번호 설정
-2. **HTTPS 사용**: SSL 인증서 설정
-3. **파일 검증**: 업로드 시 파일 내용 검증
-4. **환경 변수**: API URL을 환경 변수로 관리
-
-## 📈 성능 최적화
-
-- **Vite**: 빠른 개발 서버 및 빌드
-- **React 18**: 자동 배치 업데이트
-- **동적 임포트**: 필요한 컴포넌트만 로드
-- **메모이제이션**: 불필요한 재계산 방지
-- **Tailwind CSS**: 미사용 CSS 제거
+---
 
 ## 🐛 트러블슈팅
 
-### 서버 연결 오류
+### 1. 데이터가 로드되지 않아요
 
-**증상:** "서버에서 데이터를 불러올 수 없습니다"
+**증상**: "업로드된 파일이 없습니다" 메시지
 
-**해결:**
-1. 백엔드 서버가 실행 중인지 확인
-   ```bash
-   npm run server
-   ```
-2. 서버 콘솔에서 "🚀 서버가 시작되었습니다!" 메시지 확인
-3. 브라우저에서 `http://localhost:3001/api/health` 접속하여 서버 상태 확인
-4. 포트 3001이 다른 프로그램에서 사용 중인지 확인
+**해결책**:
+1. Supabase 대시보드 → Storage → `excel-files` 확인
+2. `latest.xlsx` 파일이 있는지 확인
+3. 버킷이 Public으로 설정되었는지 확인
+4. 브라우저 콘솔(F12)에서 오류 메시지 확인
 
-### 엑셀 파일이 로드되지 않을 때
+### 2. 업로드가 안 돼요
 
-**증상:** 화면에 "데이터가 없습니다" 메시지 표시
+**증상**: "파일 업로드 중 오류가 발생했습니다"
 
-**해결:**
-1. 서버가 실행 중인지 확인 (`npm run server`)
-2. "엑셀 파일 업로드" 버튼을 클릭하여 엑셀 파일 업로드
-3. 엑셀 파일 형식이 올바른지 확인 (필수 컬럼 포함)
-4. 브라우저 콘솔에서 오류 메시지 확인
-5. 서버와 프론트엔드 모두 재시작
+**해결책**:
+1. 환경 변수 확인 (`.env` 또는 Vercel 설정)
+2. Supabase URL과 Anon Key가 올바른지 확인
+3. `excel-files` 버킷이 생성되었는지 확인
+4. 브라우저 콘솔에서 구체적인 오류 확인
 
-### 업로드한 파일이 다른 사용자에게 보이지 않을 때
+### 3. 다른 기기에서 데이터가 다르게 보여요
 
-**증상:** 관리자가 파일 업로드했는데 다른 브라우저에서 안 보임
+**증상**: PC에서 업로드했는데 모바일에서 안 보임
 
-**해결:**
-1. 서버가 계속 실행 중인지 확인
-2. 다른 사용자가 페이지를 새로고침했는지 확인
-3. `uploads/latest.xlsx` 파일이 생성되었는지 확인
-4. 서버 콘솔에서 "✅ 파일 업로드 성공" 메시지 확인
+**해결책**:
+1. 두 기기 모두 같은 URL에 접속했는지 확인
+2. 브라우저 캐시 삭제 (Ctrl+Shift+R 또는 Cmd+Shift+R)
+3. Supabase 대시보드에서 파일이 올바르게 저장되었는지 확인
 
-### 데이터가 표시되지 않을 때
+### 4. 빌드 오류
 
-**증상:** 파일은 업로드됐는데 화면이 비어있음
+**증상**: `npm run build` 실패
 
-**해결:**
-1. 엑셀 파일 형식이 올바른지 확인 (필수 컬럼 포함)
-2. 사번 검색 시 정확한 사번 입력 확인
-3. 브라우저 콘솔에서 "로드된 데이터: N명" 메시지 확인
-4. 데이터가 3개 미만이면 TOP 3가 표시되지 않음
-5. 엑셀 파일에 빈 행이 없는지 확인
-
-### 순위가 이상할 때
-
-**증상:** 순위가 뒤죽박죽
-
-**해결:**
-1. 성적(점수) 데이터가 숫자 형식인지 확인
-2. 쉼표(,)가 포함된 경우 자동으로 제거됨
-3. 동점자는 엑셀 파일 순서대로 정렬됨
-4. 필터링 조건 확인 (지점/지역단/신인)
-
-## 🚢 배포
-
-### ⚠️ 주의사항
-이 프로젝트는 **백엔드 서버가 필요**합니다. 정적 호스팅만으로는 작동하지 않습니다!
-
-### 추천 배포 방법
-
-#### 옵션 1: Vercel (프론트엔드) + Render (백엔드) ⭐
-
-**프론트엔드 (Vercel):**
+**해결책**:
 ```bash
-# Vercel CLI 설치
-npm install -g vercel
-
-# 빌드 및 배포
-vercel
-```
-
-**백엔드 (Render.com):**
-1. [Render.com](https://render.com) 가입
-2. "New Web Service" 선택
-3. GitHub 저장소 연결
-4. Build Command: `npm install`
-5. Start Command: `node server.cjs`
-6. 배포된 서버 URL을 프론트엔드에 설정
-
-**환경 변수 설정:**
-```javascript
-// remixed.tsx에서 서버 URL 변경
-const API_URL = process.env.VITE_API_URL || 'http://localhost:3001';
-```
-
-#### 옵션 2: 동일 서버에 배포
-
-```bash
-# Express에서 빌드된 프론트엔드도 서빙
-# server.cjs에 추가:
-app.use(express.static('dist'));
-```
-
-### Heroku 배포 (무료 티어 종료됨)
-
-대안으로 **Railway.app** 또는 **Fly.io** 사용 가능
-
-### 일반 VPS 배포 (DigitalOcean, AWS EC2 등)
-
-```bash
-# 서버에서
-git clone [repository]
-cd dashboard
+# 의존성 재설치
+rm -rf node_modules package-lock.json
 npm install
 
-# PM2로 백엔드 실행
-npm install -g pm2
-pm2 start server.cjs --name "dashboard-api"
-
-# Nginx로 프록시 설정
-# /etc/nginx/sites-available/dashboard
+# 다시 빌드
+npm run build
 ```
 
-## 📝 구현 완료 ✅
+### 5. Supabase 연결 오류
 
-- [x] **백엔드 서버 구현** (Express + 파일 저장)
-- [x] **관리자 업로드 기능** (모든 사용자 공유)
+**증상**: CORS 오류 또는 401 Unauthorized
+
+**해결책**:
+1. Supabase 프로젝트가 활성화되어 있는지 확인
+2. API URL이 `https://`로 시작하는지 확인
+3. Anon Key가 올바른지 확인 (Service Role Key 아님!)
+4. 버킷 정책에서 `public` 읽기 권한 확인
+
+---
+
+## 💰 비용 안내
+
+### Supabase (무료 티어)
+- ✅ 스토리지: 1GB
+- ✅ 데이터 전송: 2GB/월
+- ✅ 무제한 API 요청
+- ✅ 무료!
+
+### Vercel (무료 티어)
+- ✅ 무제한 배포
+- ✅ 대역폭: 100GB/월
+- ✅ 빌드: 6000분/월
+- ✅ 무료!
+
+**총 비용: 완전 무료! 💸**
+
+---
+
+## 🔒 보안
+
+### 현재 보안 수준
+- ✅ HTTPS 자동 적용 (Vercel + Supabase)
+- ✅ 환경 변수로 API 키 관리
+- ⚠️ 관리자 인증 없음 (누구나 업로드 가능)
+
+### 관리자 인증 추가 (선택사항)
+
+나중에 Supabase Auth를 사용하여 관리자만 업로드할 수 있도록 설정 가능:
+
+```typescript
+// 로그인 필요
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) {
+  alert('관리자만 업로드할 수 있습니다.');
+  return;
+}
+```
+
+---
+
+## 📈 성능 최적화
+
+- ✅ **Vercel CDN**: 전 세계 빠른 로딩
+- ✅ **Supabase CDN**: 파일 다운로드 최적화
+- ✅ **React 18**: 자동 배치 업데이트
+- ✅ **Vite**: 빠른 빌드 및 개발 서버
+- ✅ **Tailwind CSS**: 미사용 CSS 제거
+
+---
+
+## 🎯 완료된 기능 ✅
+
+- [x] **Supabase Storage 통합** (백엔드 서버 불필요)
 - [x] **동적 랭킹 시스템** (지점/지역단/신인)
 - [x] **사번 검색 기능**
 - [x] **TOP 3 시각화**
 - [x] **실시간 뉴스 마퀴**
 - [x] **반응형 디자인**
+- [x] **다중 기기 데이터 공유** ⭐
 
-## 📝 향후 개선 사항
+---
 
-- [ ] 관리자 인증 시스템
+## 🚀 향후 개선 사항
+
+- [ ] 관리자 인증 시스템 (Supabase Auth)
+- [ ] 데이터베이스 저장 (더 빠른 쿼리)
+- [ ] 실시간 업데이트 (WebSocket)
 - [ ] 다크 모드 지원
 - [ ] 순위 변동 히스토리 추적
 - [ ] PDF 리포트 생성
-- [ ] 모바일 앱 변환 (PWA)
+- [ ] PWA 지원 (오프라인 모드)
 - [ ] 다국어 지원 (i18n)
-- [ ] 데이터베이스 연동 (PostgreSQL/MongoDB)
-- [ ] 실시간 업데이트 (WebSocket)
+
+---
+
+## 📚 추가 문서
+
+- **[SUPABASE_DEPLOY.md](./SUPABASE_DEPLOY.md)** - 상세 배포 가이드
+- **[env.example.txt](./env.example.txt)** - 환경 변수 설정 예시
+
+---
 
 ## 🤝 기여
 
 이슈 및 풀 리퀘스트 환영합니다!
 
+---
+
 ## 📄 라이선스
 
 MIT License
+
+---
 
 ## 👨‍💻 개발자
 
@@ -528,4 +433,6 @@ Dashboard Project Team
 
 ---
 
-**Made with ❤️ using React & TypeScript**
+**Made with ❤️ using React, TypeScript & Supabase**
+
+🌟 모든 기기에서 동일한 데이터를 공유하는 현대적인 대시보드!
